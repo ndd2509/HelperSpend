@@ -46,10 +46,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
 
       - name: 📦 Install JS dependencies
-        run: yarn install --immutable
+        run: yarn install
 
       - name: 💎 Setup Ruby & Bundler
         uses: ruby/setup-ruby@v1

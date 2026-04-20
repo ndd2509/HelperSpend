@@ -52,7 +52,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
 
       - name: ☕ Setup JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v4
@@ -64,7 +63,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: 📦 Install dependencies
-        run: yarn install --immutable
+        run: yarn install
 
       # ─── Release keystore (nếu build release) ───
       - name: 🔐 Decode release keystore

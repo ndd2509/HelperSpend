@@ -47,7 +47,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
 
       - name: ☕ Setup JDK
         uses: actions/setup-java@v4
@@ -61,7 +60,7 @@ jobs:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
       - name: 📦 Install JS dependencies
-        run: yarn install --immutable
+        run: yarn install
 
       # ─── Release keystore (chỉ cần cho release build) ───
       - name: 🔐 Decode release keystore

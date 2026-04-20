@@ -37,9 +37,13 @@ jobs:
       - name: 📦 Install dependencies
         run: yarn install
 
-      - name: 🔧 Install NDK & CMake
+      - name: 🔧 Install CMake 3.30.5
         run: |
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "cmake;3.31.6" "ndk;27.1.12297006" || true
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "cmake;3.30.5" || true
+          # Xóa cmake cũ để Gradle bắt buộc dùng 3.30.5
+          rm -rf $ANDROID_HOME/cmake/3.22.1
+          echo "CMake versions available:"
+          ls $ANDROID_HOME/cmake/
 
       - name: 🔨 Build Release APK
         working-directory: android

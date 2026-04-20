@@ -1,0 +1,54 @@
+# ============================================================================
+# HelperSpend - Continuous Integration
+# ============================================================================
+# Triggers on push/PR to main & develop branches
+# Runs: Lint, Type Check, Unit Tests
+# ============================================================================
+
+name: CI - Lint & Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-test:
+    name: 🔍 Lint & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'yarn'
+
+      - name: 📦 Install dependencies
+        run: yarn install --immutable
+
+      - name: 🧹 Run ESLint
+        run: yarn lint
+
+      - name: 🔎 TypeScript type check
+        run: npx tsc --noEmit
+
+      - name: 🧪 Run unit tests
+        run: yarn test --ci --coverage --maxWorkers=2
+
+      - name: 📊 Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7

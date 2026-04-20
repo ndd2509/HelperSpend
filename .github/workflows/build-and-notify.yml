@@ -1,10 +1,5 @@
 # ============================================================================
-# HelperSpend - Auto Build & Telegram Notify
-# ============================================================================
-# Khi push code lên main/develop:
-#   1. Build Android APK (debug) + AAB (release)
-#   2. Upload artifact lên GitHub
-#   3. Gửi thông báo kết quả qua Telegram Bot
+# HelperSpend - Build Android & Telegram Notify
 # ============================================================================
 
 name: 🚀 Build & Notify
@@ -13,125 +8,54 @@ on:
   push:
     branches: [main, develop]
   workflow_dispatch:
-    inputs:
-      build_type:
-        description: 'Loại build'
-        required: true
-        default: 'debug'
-        type: choice
-        options:
-          - debug
-          - release
-
-concurrency:
-  group: build-${{ github.ref }}
-  cancel-in-progress: true
 
 env:
   JAVA_VERSION: '17'
   NODE_VERSION: '20'
 
 jobs:
-  # ════════════════════════════════════════════════════
-  # JOB 1: Build Android
-  # ════════════════════════════════════════════════════
   build-android:
-    name: 🤖 Android Build
+    name: 🤖 Build Android Release
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    outputs:
-      apk_name: ${{ steps.build_info.outputs.apk_name }}
-      build_status: ${{ steps.build_info.outputs.build_status }}
-      build_duration: ${{ steps.build_info.outputs.build_duration }}
 
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
 
-      - name: 🟢 Setup Node.js ${{ env.NODE_VERSION }}
+      - name: 🟢 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: ☕ Setup JDK ${{ env.JAVA_VERSION }}
+      - name: ☕ Setup JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: ${{ env.JAVA_VERSION }}
 
-      - name: 🐘 Gradle cache
-        uses: gradle/actions/setup-gradle@v4
-
       - name: 📦 Install dependencies
         run: yarn install
 
-      # ─── Release keystore (nếu build release) ───
-      - name: 🔐 Decode release keystore
-        if: github.event.inputs.build_type == 'release'
-        run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/release.keystore
+      - name: 🔨 Build Release APK
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon
 
-      # ─── Build ───
-      - name: 🔨 Build Android
-        id: build_info
-        run: |
-          BUILD_TYPE="${{ github.event.inputs.build_type || 'debug' }}"
-          START_TIME=$(date +%s)
-
-          cd android
-
-          if [ "$BUILD_TYPE" = "release" ]; then
-            echo "Building Release AAB..."
-            ./gradlew bundleRelease --no-daemon -PnewArchEnabled=true
-            APK_NAME="app-release.aab"
-          else
-            echo "Building Debug APK..."
-            ./gradlew assembleDebug --no-daemon -PnewArchEnabled=true
-            APK_NAME="app-debug.apk"
-          fi
-
-          END_TIME=$(date +%s)
-          DURATION=$((END_TIME - START_TIME))
-          MINUTES=$((DURATION / 60))
-          SECONDS=$((DURATION % 60))
-
-          echo "apk_name=$APK_NAME" >> $GITHUB_OUTPUT
-          echo "build_status=success" >> $GITHUB_OUTPUT
-          echo "build_duration=${MINUTES}m ${SECONDS}s" >> $GITHUB_OUTPUT
-        env:
-          RELEASE_STORE_FILE: release.keystore
-          RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-
-      # ─── Upload APK/AAB ───
-      - name: 📤 Upload Debug APK
-        if: github.event.inputs.build_type != 'release'
+      - name: 📤 Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: HelperSpend-debug-${{ github.sha }}
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 14
-
-      - name: 📤 Upload Release AAB
-        if: github.event.inputs.build_type == 'release'
-        uses: actions/upload-artifact@v4
-        with:
-          name: HelperSpend-release-${{ github.sha }}
-          path: android/app/build/outputs/bundle/release/app-release.aab
+          name: HelperSpend-release
+          path: android/app/build/outputs/apk/release/app-release.apk
           retention-days: 30
 
-  # ════════════════════════════════════════════════════
-  # JOB 2: Telegram Notification
-  # ════════════════════════════════════════════════════
-  notify-telegram:
+  notify:
     name: 📨 Telegram Notify
     runs-on: ubuntu-latest
     needs: [build-android]
     if: always()
 
     steps:
-      - name: 📥 Checkout (for scripts)
+      - name: 📥 Checkout
         uses: actions/checkout@v4
 
       - name: 📨 Send Telegram notification
@@ -139,16 +63,43 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           BUILD_STATUS: ${{ needs.build-android.result }}
-          BUILD_DURATION: ${{ needs.build-android.outputs.build_duration }}
-          APK_NAME: ${{ needs.build-android.outputs.apk_name }}
           COMMIT_SHA: ${{ github.sha }}
           COMMIT_MSG: ${{ github.event.head_commit.message }}
           COMMIT_AUTHOR: ${{ github.event.head_commit.author.name }}
           BRANCH: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
-          RUN_ID: ${{ github.run_id }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          BUILD_TYPE: ${{ github.event.inputs.build_type || 'debug' }}
         run: |
-          chmod +x ci-cd/notify-telegram.sh
-          bash ci-cd/notify-telegram.sh
+          if [ "$BUILD_STATUS" = "success" ]; then
+            EMOJI="✅"
+            TEXT="THÀNH CÔNG"
+          else
+            EMOJI="❌"
+            TEXT="THẤT BẠI"
+          fi
+
+          SHORT_SHA="${COMMIT_SHA:0:7}"
+
+          MESSAGE="${EMOJI} *HelperSpend Build ${TEXT}*
+
+          📦 Android Release APK
+          🌿 Branch: \`${BRANCH}\`
+          👤 Author: ${COMMIT_AUTHOR}
+          💬 Commit: \`${SHORT_SHA}\`
+          📝 ${COMMIT_MSG}
+
+          🔗 [Xem chi tiết](${RUN_URL})"
+
+          if [ "$BUILD_STATUS" = "success" ]; then
+            MESSAGE="${MESSAGE}
+          📥 [Tải APK](${RUN_URL}#artifacts)"
+          fi
+
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"chat_id\": \"${TELEGRAM_CHAT_ID}\",
+              \"text\": $(echo "$MESSAGE" | jq -Rs .),
+              \"parse_mode\": \"Markdown\",
+              \"disable_web_page_preview\": true
+            }" || echo "Telegram notification failed"

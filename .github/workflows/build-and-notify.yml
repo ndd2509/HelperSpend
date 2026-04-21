@@ -67,43 +67,35 @@ jobs:
           APK_PATH="${{ steps.find_apk.outputs.apk_path }}"
           SHORT_SHA="${GITHUB_SHA:0:7}"
           BRANCH="${GITHUB_REF_NAME}"
-          COMMIT_MSG=$(echo "${{ github.event.head_commit.message }}" | head -1)
+          COMMIT_MSG=$(git log -1 --pretty=%s)
 
-          CAPTION="✅ *HelperSpend Build Thành Công*
-
+          CAPTION="✅ HelperSpend Build OK
 📦 Android Release APK
-🌿 Branch: \`${BRANCH}\`
-💬 Commit: \`${SHORT_SHA}\`
+🌿 Branch: ${BRANCH}
+💬 Commit: ${SHORT_SHA}
 📝 ${COMMIT_MSG}"
 
           # Gửi file APK trực tiếp qua Telegram
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument" \
             -F "chat_id=${TELEGRAM_CHAT_ID}" \
             -F "document=@${APK_PATH}" \
-            -F "caption=${CAPTION}" \
-            -F "parse_mode=Markdown" || echo "Failed to send APK"
+            -F "caption=${CAPTION}" || echo "Failed to send APK"
 
       - name: ❌ Notify failure
         if: failure()
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           SHORT_SHA="${GITHUB_SHA:0:7}"
           BRANCH="${GITHUB_REF_NAME}"
-          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
-          MESSAGE="❌ *HelperSpend Build Thất Bại*
-
-🌿 Branch: \`${BRANCH}\`
-💬 Commit: \`${SHORT_SHA}\`
-🔗 [Xem lỗi](${RUN_URL})"
+          MESSAGE="❌ HelperSpend Build FAILED
+🌿 Branch: ${BRANCH}
+💬 Commit: ${SHORT_SHA}
+🔗 ${RUN_URL}"
 
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"chat_id\": \"${TELEGRAM_CHAT_ID}\",
-              \"text\": $(echo "$MESSAGE" | jq -Rs .),
-              \"parse_mode\": \"Markdown\",
-              \"disable_web_page_preview\": true
-            }" || echo "Notification failed"
+            -F "chat_id=${TELEGRAM_CHAT_ID}" \
+            -F "text=${MESSAGE}" || echo "Notification failed"

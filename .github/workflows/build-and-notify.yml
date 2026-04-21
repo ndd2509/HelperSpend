@@ -14,8 +14,8 @@ env:
   NODE_VERSION: '20'
 
 jobs:
-  build-android:
-    name: 🤖 Build Android Release
+  build-and-notify:
+    name: 🤖 Build & Send APK
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -46,75 +46,58 @@ jobs:
       - name: 📦 Find APK
         id: find_apk
         run: |
-          echo "Searching for APK files..."
-          find android/app/build/outputs -name "*.apk" -type f 2>/dev/null
           APK_PATH=$(find android/app/build/outputs -name "*.apk" -type f | head -1)
           echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
           echo "Found APK: $APK_PATH"
+          ls -lh "$APK_PATH"
 
-      - name: 📤 Upload APK to Artifacts
+      - name: 📤 Upload to GitHub Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: HelperSpend-release
           path: android/app/build/outputs/**/*.apk
           retention-days: 30
 
-      - name: 📂 Commit APK to repo
-        run: |
-          mkdir -p build-output
-          cp $(find android/app/build/outputs -name "*.apk" -type f | head -1) build-output/app-release.apk
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git add build-output/app-release.apk
-          git commit -m "ci: update release APK [skip ci]" || echo "No changes"
-          git push
-
-  notify:
-    name: 📨 Telegram Notify
-    runs-on: ubuntu-latest
-    needs: [build-android]
-    if: always()
-
-    steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
-
-      - name: 📨 Send Telegram notification
+      - name: 📨 Send APK to Telegram
+        if: success()
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          BUILD_STATUS: ${{ needs.build-android.result }}
-          COMMIT_SHA: ${{ github.sha }}
-          COMMIT_MSG: ${{ github.event.head_commit.message }}
-          COMMIT_AUTHOR: ${{ github.event.head_commit.author.name }}
-          BRANCH: ${{ github.ref_name }}
-          REPO: ${{ github.repository }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          if [ "$BUILD_STATUS" = "success" ]; then
-            EMOJI="✅"
-            TEXT="THÀNH CÔNG"
-          else
-            EMOJI="❌"
-            TEXT="THẤT BẠI"
-          fi
+          APK_PATH="${{ steps.find_apk.outputs.apk_path }}"
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          BRANCH="${GITHUB_REF_NAME}"
+          COMMIT_MSG=$(echo "${{ github.event.head_commit.message }}" | head -1)
 
-          SHORT_SHA="${COMMIT_SHA:0:7}"
+          CAPTION="✅ *HelperSpend Build Thành Công*
 
-          MESSAGE="${EMOJI} *HelperSpend Build ${TEXT}*
+📦 Android Release APK
+🌿 Branch: \`${BRANCH}\`
+💬 Commit: \`${SHORT_SHA}\`
+📝 ${COMMIT_MSG}"
 
-          📦 Android Release APK
-          🌿 Branch: \`${BRANCH}\`
-          👤 Author: ${COMMIT_AUTHOR}
-          💬 Commit: \`${SHORT_SHA}\`
-          📝 ${COMMIT_MSG}
+          # Gửi file APK trực tiếp qua Telegram
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument" \
+            -F "chat_id=${TELEGRAM_CHAT_ID}" \
+            -F "document=@${APK_PATH}" \
+            -F "caption=${CAPTION}" \
+            -F "parse_mode=Markdown" || echo "Failed to send APK"
 
-          🔗 [Xem chi tiết](${RUN_URL})"
+      - name: ❌ Notify failure
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          BRANCH="${GITHUB_REF_NAME}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
-          if [ "$BUILD_STATUS" = "success" ]; then
-            MESSAGE="${MESSAGE}
-          📥 [Tải APK](${RUN_URL}#artifacts)"
-          fi
+          MESSAGE="❌ *HelperSpend Build Thất Bại*
+
+🌿 Branch: \`${BRANCH}\`
+💬 Commit: \`${SHORT_SHA}\`
+🔗 [Xem lỗi](${RUN_URL})"
 
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -H "Content-Type: application/json" \
@@ -123,4 +106,4 @@ jobs:
               \"text\": $(echo "$MESSAGE" | jq -Rs .),
               \"parse_mode\": \"Markdown\",
               \"disable_web_page_preview\": true
-            }" || echo "Telegram notification failed"
+            }" || echo "Notification failed"

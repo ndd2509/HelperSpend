@@ -52,12 +52,22 @@ jobs:
           echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
           echo "Found APK: $APK_PATH"
 
-      - name: 📤 Upload APK
+      - name: 📤 Upload APK to Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: HelperSpend-release
           path: android/app/build/outputs/**/*.apk
           retention-days: 30
+
+      - name: 📂 Commit APK to repo
+        run: |
+          mkdir -p build-output
+          cp $(find android/app/build/outputs -name "*.apk" -type f | head -1) build-output/app-release.apk
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add build-output/app-release.apk
+          git commit -m "ci: update release APK [skip ci]" || echo "No changes"
+          git push
 
   notify:
     name: 📨 Telegram Notify

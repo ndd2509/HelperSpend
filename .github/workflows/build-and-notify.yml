@@ -43,11 +43,20 @@ jobs:
         env:
           JS_RUNTIME: hermes
 
+      - name: 📦 Find APK
+        id: find_apk
+        run: |
+          echo "Searching for APK files..."
+          find android/app/build/outputs -name "*.apk" -type f 2>/dev/null
+          APK_PATH=$(find android/app/build/outputs -name "*.apk" -type f | head -1)
+          echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
+          echo "Found APK: $APK_PATH"
+
       - name: 📤 Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: HelperSpend-release
-          path: android/app/build/outputs/apk/release/app-release.apk
+          path: android/app/build/outputs/**/*.apk
           retention-days: 30
 
   notify:

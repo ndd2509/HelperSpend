@@ -1,8 +1,4 @@
-# ============================================================================
-# HelperSpend - Build Android & Telegram Notify
-# ============================================================================
-
-name: 🚀 Build & Notify
+name: "\U0001F680 Build & Notify"
 
 on:
   push:
@@ -10,55 +6,55 @@ on:
   workflow_dispatch:
 
 env:
-  JAVA_VERSION: '17'
-  NODE_VERSION: '20'
+  JAVA_VERSION: "17"
+  NODE_VERSION: "20"
 
 jobs:
   build-and-notify:
-    name: 🤖 Build & Send APK
+    name: "\U0001F916 Build & Send APK"
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
     steps:
-      - name: 📥 Checkout
+      - name: "\U0001F4E5 Checkout"
         uses: actions/checkout@v4
 
-      - name: 🟢 Setup Node.js
+      - name: "\U0001F7E2 Setup Node.js"
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: ☕ Setup JDK
+      - name: "\u2615 Setup JDK"
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
+          distribution: "zulu"
           java-version: ${{ env.JAVA_VERSION }}
 
-      - name: 📦 Install dependencies
+      - name: "\U0001F4E6 Install dependencies"
         run: yarn install
 
-      - name: 🔨 Build Release APK
+      - name: "\U0001F528 Build Release APK"
         working-directory: android
         run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a
         env:
           JS_RUNTIME: hermes
 
-      - name: 📦 Find APK
+      - name: "\U0001F4E6 Find APK"
         id: find_apk
         run: |
           APK_PATH=$(find android/app/build/outputs -name "*.apk" -type f | head -1)
           echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
-          echo "Found APK: $APK_PATH"
+          echo "Found APK at: $APK_PATH"
           ls -lh "$APK_PATH"
 
-      - name: 📤 Upload to GitHub Artifacts
+      - name: "\U0001F4E4 Upload to GitHub Artifacts"
         uses: actions/upload-artifact@v4
         with:
           name: HelperSpend-release
           path: android/app/build/outputs/**/*.apk
           retention-days: 30
 
-      - name: 📨 Send APK to Telegram
+      - name: "\U0001F4E8 Send APK to Telegram"
         if: success()
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -68,20 +64,13 @@ jobs:
           SHORT_SHA="${GITHUB_SHA:0:7}"
           BRANCH="${GITHUB_REF_NAME}"
           COMMIT_MSG=$(git log -1 --pretty=%s)
-
-          CAPTION="✅ HelperSpend Build OK
-📦 Android Release APK
-🌿 Branch: ${BRANCH}
-💬 Commit: ${SHORT_SHA}
-📝 ${COMMIT_MSG}"
-
-          # Gửi file APK trực tiếp qua Telegram
+          CAPTION=$(printf "HelperSpend Build OK\nBranch: %s\nCommit: %s\n%s" "$BRANCH" "$SHORT_SHA" "$COMMIT_MSG")
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument" \
             -F "chat_id=${TELEGRAM_CHAT_ID}" \
             -F "document=@${APK_PATH}" \
             -F "caption=${CAPTION}" || echo "Failed to send APK"
 
-      - name: ❌ Notify failure
+      - name: "\u274C Notify failure"
         if: failure()
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -90,12 +79,7 @@ jobs:
         run: |
           SHORT_SHA="${GITHUB_SHA:0:7}"
           BRANCH="${GITHUB_REF_NAME}"
-
-          MESSAGE="❌ HelperSpend Build FAILED
-🌿 Branch: ${BRANCH}
-💬 Commit: ${SHORT_SHA}
-🔗 ${RUN_URL}"
-
+          MESSAGE=$(printf "HelperSpend Build FAILED\nBranch: %s\nCommit: %s\nDetails: %s" "$BRANCH" "$SHORT_SHA" "$RUN_URL")
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -F "chat_id=${TELEGRAM_CHAT_ID}" \
             -F "text=${MESSAGE}" || echo "Notification failed"

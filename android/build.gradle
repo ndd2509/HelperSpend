@@ -22,14 +22,11 @@ buildscript {
 apply plugin: "com.facebook.react.rootproject"
 
 // Ensure hermes-engine prefab is available for all native modules (fixes CI build)
-subprojects { subproject ->
-    afterEvaluate {
-        if (subproject.plugins.hasPlugin("com.android.library")) {
-            def hasCmake = subproject.android.externalNativeBuild?.cmake?.path != null
-            if (hasCmake) {
-                subproject.android.buildFeatures.prefab = true
-                subproject.dependencies.add("implementation", "com.facebook.react:hermes-android")
-            }
+subprojects {
+    pluginManager.withPlugin("com.android.library") {
+        android.buildFeatures.prefab = true
+        dependencies {
+            implementation("com.facebook.react:hermes-android")
         }
     }
 }

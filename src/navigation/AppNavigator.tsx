@@ -6,6 +6,7 @@ import { navigationRef } from './navigationRef';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 export const AppNavigator = () => {
+  //test
   return (
     <KeyboardProvider>
       <AuthProvider>

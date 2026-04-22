@@ -33,6 +33,18 @@ jobs:
       - name: "\U0001F4E6 Install dependencies"
         run: yarn install
 
+      - name: "\U0001F510 Restore Firebase & Keystore"
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          GOOGLE_SERVICE_INFO_PLIST: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}
+          DEBUG_KEYSTORE: ${{ secrets.DEBUG_KEYSTORE }}
+        run: |
+          echo "$GOOGLE_SERVICES_JSON" | base64 -d > android/app/google-services.json
+          echo "$GOOGLE_SERVICE_INFO_PLIST" | base64 -d > ios/HelperSpend/GoogleService-Info.plist
+          cp ios/HelperSpend/GoogleService-Info.plist ios/GoogleService-Info.plist
+          echo "$DEBUG_KEYSTORE" | base64 -d > android/app/debug.keystore
+          echo "Firebase and Keystore files restored"
+
       - name: "\U0001F528 Build Release APK"
         working-directory: android
         run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a

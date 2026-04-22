@@ -84,3 +84,9 @@ package-lock.json
 # CI/CD local scripts
 ci-cd/
 scripts/ci/
+
+# Sensitive files (Firebase, Keystore)
+android/app/google-services.json
+ios/GoogleService-Info.plist
+ios/HelperSpend/GoogleService-Info.plist
+android/app/debug.keystore

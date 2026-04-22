@@ -80,3 +80,7 @@ build-output/
 # Lock files
 yarn.lock
 package-lock.json
+
+# CI/CD local scripts
+ci-cd/
+scripts/ci/

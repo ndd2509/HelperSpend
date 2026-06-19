@@ -3,6 +3,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import ReportScreen from '../screen/ReportScreen';
 import ReportDetailScreen from '../screen/ReportDetailScreen';
 import BalanceDetailScreen from '../screen/BalanceDetailScreen';
+import DebtPaymentScreen from '../screen/DebtPaymentScreen';
+import LendingScreen from '../screen/LendingScreen';
 import AIAnalysisScreen from '../screen/AIAnalysisScreen';
 
 const Stack = createNativeStackNavigator();
@@ -17,6 +19,8 @@ export const ReportStackNavigator = () => {
       <Stack.Screen name="ReportMain" component={ReportScreen} />
       <Stack.Screen name="ReportDetail" component={ReportDetailScreen} />
       <Stack.Screen name="BalanceDetailScreen" component={BalanceDetailScreen} />
+      <Stack.Screen name="DebtPayment" component={DebtPaymentScreen} />
+      <Stack.Screen name="Lending" component={LendingScreen} />
       <Stack.Screen name="AIAnalysis" component={AIAnalysisScreen} />
     </Stack.Navigator>
   );

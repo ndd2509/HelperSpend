@@ -14,6 +14,8 @@ interface User {
   id: string;
   phone: string;
   name: string;
+  avatarUrl?: string;
+  defaultAccountId?: string;
 }
 
 interface AuthContextType {
@@ -27,6 +29,7 @@ interface AuthContextType {
   ) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
+  updateUser: (user: User) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -173,7 +176,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       try {
         await NotificationService.deleteToken();
       } catch (notifError) {
-        console.error('Error deleting FCM token:', notifError);
+        console.log('Error deleting FCM token:', notifError);
         // Continue with logout even if token deletion fails
       }
 
@@ -198,6 +201,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const updateUser = async (updatedUser: User) => {
+    try {
+      await AuthService.shared.setCredentials(
+        EKeyAsyncStorage.INFO_USER,
+        JSON.stringify(updatedUser),
+      );
+      setUser(updatedUser);
+    } catch (error) {
+      console.error('Error updating user:', error);
+      throw error;
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -207,6 +223,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         login,
         logout,
         checkAuth,
+        updateUser,
       }}
     >
       {children}

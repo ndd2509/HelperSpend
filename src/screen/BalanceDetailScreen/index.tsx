@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,21 +7,45 @@ import {
   TouchableOpacity,
   Modal,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { getDashboardSummary, getLoanSummary } from '../../apis/apis';
 
 const REPORT_TYPES = [
   { id: 'balance', label: 'Tài chính hiện tại' },
   { id: 'income-expense', label: 'Tình hình thu chi' },
   { id: 'expense-analysis', label: 'Phân tích chi tiêu' },
   { id: 'income-analysis', label: 'Phân tích thu' },
-  { id: 'debt-tracking', label: 'Theo dõi vay nợ' },
+  // { id: 'debt-tracking', label: 'Theo dõi vay nợ' },
   { id: 'contact', label: 'Đối tượng thu/chi' },
-  { id: 'transfer-event', label: 'Chuyển đi/Sự kiện' },
+  // { id: 'transfer-event', label: 'Chuyển đi/Sự kiện' },
   { id: 'financial-analysis', label: 'Phân tích tài chính' },
 ];
 
 const BalanceDetailScreen = ({ navigation, route }: any) => {
-  const { totalCo = 0, totalNo = 0 } = route.params || {};
+  const { totalCo: initialTotalCo = 0, totalNo: initialTotalNo = 0 } = route.params || {};
   const [showPicker, setShowPicker] = useState(false);
+  const [totalCo, setTotalCo] = useState<number>(initialTotalCo);
+  const [totalNo, setTotalNo] = useState<number>(initialTotalNo);
+  const [totalLent, setTotalLent] = useState<number>(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      const now = new Date();
+      Promise.all([
+        getDashboardSummary(now.getMonth() + 1, now.getFullYear()),
+        getLoanSummary(),
+      ]).then(([summaryRes, loanRes]) => {
+        const debt = (loanRes.success && loanRes.data) ? loanRes.data.totalDebt : 0;
+        const lent = (loanRes.success && loanRes.data) ? (loanRes.data.totalLent || 0) : 0;
+        setTotalNo(debt);
+        setTotalLent(lent);
+        if (summaryRes.success && summaryRes.data) {
+          setTotalCo(summaryRes.data.balance + debt - lent);
+        }
+      }).catch(err => console.error('BalanceDetailScreen load error:', err));
+    }, []),
+  );
+
   const netBalance = totalCo - totalNo;
 
   const handleReportSelect = (id: string) => {
@@ -91,7 +115,44 @@ const BalanceDetailScreen = ({ navigation, route }: any) => {
           </View>
         </View>
 
+        {totalLent > 0 && (
+          <TouchableOpacity
+            style={styles.item}
+            onPress={() => navigation.navigate('Lending')}
+          >
+            <View style={styles.itemLeft}>
+              <View style={[styles.itemIcon, { backgroundColor: '#4CAF50' }]}>
+                <Text style={styles.itemIconText}>$</Text>
+              </View>
+              <Text style={styles.itemName}>Cho vay</Text>
+            </View>
+            <View style={styles.itemRight}>
+              <Text style={styles.itemValue}>
+                -{totalLent.toLocaleString('vi-VN')} đ
+              </Text>
+              <Text style={styles.itemArrow}>›</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+
         <Text style={styles.sectionTitle}>Tổng nợ (2)</Text>
+        <TouchableOpacity
+          style={styles.item}
+          onPress={() => navigation.navigate('DebtPayment')}
+        >
+          <View style={styles.itemLeft}>
+            <View style={[styles.itemIcon, { backgroundColor: '#FF3B30' }]}>
+              <Text style={styles.itemIconText}>$</Text>
+            </View>
+            <Text style={styles.itemName}>Nợ phải trả</Text>
+          </View>
+          <View style={styles.itemRight}>
+            <Text style={[styles.itemValue, { color: '#FF3B30' }]}>
+              {totalNo.toLocaleString('vi-VN')} đ
+            </Text>
+            <Text style={styles.itemArrow}>›</Text>
+          </View>
+        </TouchableOpacity>
       </ScrollView>
 
       <Modal visible={showPicker} transparent animationType="fade">

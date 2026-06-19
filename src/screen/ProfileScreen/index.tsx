@@ -10,8 +10,15 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
-import { getUserImages, deleteImage, requestLogout } from '../../apis/apis';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { launchImageLibrary } from 'react-native-image-picker';
+import {
+  getUserImages,
+  deleteImage,
+  requestLogout,
+  uploadImage,
+  updateAvatar,
+} from '../../apis/apis';
 import { useAuth } from '../../contexts/AuthContext';
 import { BaseContainer } from 'react-native-shared-components';
 
@@ -24,11 +31,14 @@ interface UploadedImage {
 }
 
 export const ProfileScreen = () => {
+  const navigation = useNavigation<any>();
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showImages, setShowImages] = useState(false);
-  const { user, logout } = useAuth();
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const { user, logout, updateUser } = useAuth();
 
   const loadImages = async () => {
     try {
@@ -47,7 +57,11 @@ export const ProfileScreen = () => {
   useFocusEffect(
     useCallback(() => {
       loadImages();
-    }, []),
+      // Load avatar from user context
+      if (user?.avatarUrl) {
+        setAvatarUri(user.avatarUrl);
+      }
+    }, [user?.avatarUrl]),
   );
 
   const onRefresh = async () => {
@@ -138,6 +152,45 @@ export const ProfileScreen = () => {
         .slice(0, 2)
     : '?';
 
+  const handlePickAvatar = () => {
+    launchImageLibrary(
+      { mediaType: 'photo', quality: 0.8, selectionLimit: 1 },
+      async response => {
+        if (response.didCancel || !response.assets?.[0]) return;
+        const asset = response.assets[0];
+        if (!asset.uri) return;
+        try {
+          setUploadingAvatar(true);
+          // Upload image first
+          const res = await uploadImage(
+            asset.uri,
+            asset.fileName ?? 'avatar.jpg',
+          );
+          if (res.data?.success) {
+            const url = res.data?.data?.url ?? asset.uri;
+            // Update avatar on server
+            const updateRes = await updateAvatar(url);
+            if (updateRes?.success) {
+              setAvatarUri(url);
+              // Update user context
+              if (updateRes.data?.user) {
+                updateUser(updateRes.data.user);
+              }
+              Alert.alert('Thành công', 'Đã cập nhật ảnh đại diện');
+            }
+          }
+        } catch (err: any) {
+          Alert.alert(
+            'Lỗi',
+            err?.response?.data?.message ?? 'Không thể upload ảnh',
+          );
+        } finally {
+          setUploadingAvatar(false);
+        }
+      },
+    );
+  };
+
   return (
     <BaseContainer style={styles.container}>
       <ScrollView
@@ -148,9 +201,31 @@ export const ProfileScreen = () => {
       >
         {/* Header + Avatar */}
         <View style={styles.headerSection}>
-          <View style={styles.avatarCircle}>
-            <Text style={styles.avatarText}>{initials}</Text>
-          </View>
+          <TouchableOpacity
+            style={styles.avatarWrapper}
+            onPress={handlePickAvatar}
+            disabled={uploadingAvatar}
+          >
+            {avatarUri ? (
+              <Image
+                source={{ uri: avatarUri }}
+                style={styles.avatarImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={styles.avatarCircle}>
+                <Text style={styles.avatarText}>{initials}</Text>
+              </View>
+            )}
+            {/* Camera badge */}
+            <View style={styles.cameraBadge}>
+              {uploadingAvatar ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.cameraIcon}>📷</Text>
+              )}
+            </View>
+          </TouchableOpacity>
           <Text style={styles.userName}>{user?.name || 'Người dùng'}</Text>
           <Text style={styles.userPhone}>{user?.phone || ''}</Text>
         </View>
@@ -164,7 +239,10 @@ export const ProfileScreen = () => {
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
             <Text style={styles.statValue}>
-              {new Date().toLocaleDateString('vi-VN', { month: 'short', year: 'numeric' })}
+              {new Date().toLocaleDateString('vi-VN', {
+                month: 'short',
+                year: 'numeric',
+              })}
             </Text>
             <Text style={styles.statLabel}>Tham gia</Text>
           </View>
@@ -174,7 +252,9 @@ export const ProfileScreen = () => {
         <View style={styles.menuSection}>
           <Text style={styles.menuSectionTitle}>Tài khoản</Text>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('EditProfile')}>
             <View style={[styles.menuIcon, { backgroundColor: '#E8F5E9' }]}>
               <Text style={styles.menuIconText}>👤</Text>
             </View>
@@ -193,10 +273,11 @@ export const ProfileScreen = () => {
               <Text style={styles.menuLabel}>Số điện thoại</Text>
               <Text style={styles.menuSub}>{user?.phone}</Text>
             </View>
-            <Text style={styles.menuArrow}>›</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('ChangePassword')}>
             <View style={[styles.menuIcon, { backgroundColor: '#FFF3E0' }]}>
               <Text style={styles.menuIconText}>🔒</Text>
             </View>
@@ -287,7 +368,10 @@ export const ProfileScreen = () => {
             </View>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('WebViewScreen', { type: 'terms' })}
+          >
             <View style={[styles.menuIcon, { backgroundColor: '#E8EAF6' }]}>
               <Text style={styles.menuIconText}>📝</Text>
             </View>
@@ -297,7 +381,10 @@ export const ProfileScreen = () => {
             <Text style={styles.menuArrow}>›</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('WebViewScreen', { type: 'privacy' })}
+          >
             <View style={[styles.menuIcon, { backgroundColor: '#E0F7FA' }]}>
               <Text style={styles.menuIconText}>🛡️</Text>
             </View>
@@ -333,6 +420,15 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     backgroundColor: '#FFFFFF',
   },
+  avatarWrapper: {
+    position: 'relative',
+    marginBottom: 12,
+  },
+  avatarImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+  },
   avatarCircle: {
     width: 80,
     height: 80,
@@ -340,12 +436,27 @@ const styles = StyleSheet.create({
     backgroundColor: '#00A8E8',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
   },
   avatarText: {
     fontSize: 28,
     fontWeight: '800',
     color: '#FFFFFF',
+  },
+  cameraBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#00A8E8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  cameraIcon: {
+    fontSize: 13,
   },
   userName: {
     fontSize: 20,

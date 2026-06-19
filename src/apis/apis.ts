@@ -13,7 +13,6 @@ import type {
   Category,
   CreateCategoryRequest,
   DepositRequest,
-  CreateDepositRequestRequest,
   ApiResponse,
 } from './types';
 
@@ -524,7 +523,9 @@ export interface BankInfoPayload {
 /**
  * Lấy thông tin ngân hàng của user đang đăng nhập
  */
-export const getBankInfo = async (): Promise<ApiResponse<BankInfoPayload | null>> => {
+export const getBankInfo = async (): Promise<
+  ApiResponse<BankInfoPayload | null>
+> => {
   try {
     const res = await client.get('/bank-info');
     return res.data;
@@ -687,6 +688,304 @@ export const sendChatMessage = async (data: {
     return res.data;
   } catch (error: any) {
     console.error('sendChatMessage error:', error);
+    throw error;
+  }
+};
+
+export const exportTransactionsExcel = async (): Promise<{
+  success: boolean;
+  data?: {
+    fileName: string;
+    downloadPath: string;
+    totalTransactions: number;
+    months: string[];
+  };
+  message?: string;
+}> => {
+  try {
+    const res = await client.get('/export/transactions');
+    return res.data;
+  } catch (error: any) {
+    console.error('exportTransactionsExcel error:', error);
+    throw error;
+  }
+};
+
+// ─── Group Fund APIs ──────────────────────────────────────────────────────────
+
+export const createGroupFund = async (data: {
+  name: string;
+  description?: string;
+  emoji?: string;
+  targetAmount?: number;
+}): Promise<any> => {
+  try {
+    const res = await client.post('/group-funds', data);
+    return res.data;
+  } catch (error: any) {
+    console.error('createGroupFund error:', error);
+    throw error;
+  }
+};
+
+export const getGroupFunds = async (): Promise<any> => {
+  try {
+    const res = await client.get('/group-funds');
+    return res.data;
+  } catch (error: any) {
+    console.error('getGroupFunds error:', error);
+    throw error;
+  }
+};
+
+export const getGroupFundPublic = async (id: string): Promise<any> => {
+  try {
+    const res = await client.get(`/group-funds/${id}/public`);
+    return res.data;
+  } catch (error: any) {
+    console.error('getGroupFundPublic error:', error);
+    throw error;
+  }
+};
+
+export const getGroupFundById = async (id: string): Promise<any> => {
+  try {
+    const res = await client.get(`/group-funds/${id}`);
+    return res.data;
+  } catch (error: any) {
+    console.error('getGroupFundById error:', error);
+    throw error;
+  }
+};
+
+export const inviteGroupFundMember = async (
+  fundId: string,
+  phone: string,
+): Promise<any> => {
+  try {
+    const res = await client.post(`/group-funds/${fundId}/invite`, { phone });
+    return res.data;
+  } catch (error: any) {
+    console.error('inviteGroupFundMember error:', error);
+    throw error;
+  }
+};
+
+export const contributeToGroupFund = async (
+  fundId: string,
+  data: { amount: number; note?: string },
+): Promise<any> => {
+  try {
+    const res = await client.post(`/group-funds/${fundId}/contribute`, data);
+    return res.data;
+  } catch (error: any) {
+    console.error('contributeToGroupFund error:', error);
+    throw error;
+  }
+};
+
+export const deleteGroupFund = async (fundId: string): Promise<any> => {
+  try {
+    const res = await client.delete(`/group-funds/${fundId}`);
+    return res.data;
+  } catch (error: any) {
+    console.error('deleteGroupFund error:', error);
+    throw error;
+  }
+};
+
+export const updateGroupFund = async (
+  fundId: string,
+  data: {
+    name?: string;
+    emoji?: string;
+    description?: string;
+    targetAmount?: number;
+  },
+): Promise<any> => {
+  try {
+    const res = await client.patch(`/group-funds/${fundId}`, data);
+    return res.data;
+  } catch (error: any) {
+    console.error('updateGroupFund error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Chi tiền từ quỹ nhóm sang người nhận qua số điện thoại (quét QR)
+ * Trừ tiền từ quỹ và tạo expense activity
+ */
+export const spendFromGroupFund = async (
+  fundId: string,
+  data: {
+    recipientPhone: string;
+    amount: number;
+    note?: string;
+  },
+): Promise<any> => {
+  try {
+    const res = await client.post(`/group-funds/${fundId}/spend`, data);
+    return res.data;
+  } catch (error: any) {
+    console.error('spendFromGroupFund error:', error);
+    throw error;
+  }
+};
+
+export const chatGroupFundAI = async (data: {
+  message: string;
+  history?: { role: string; content: string }[];
+}): Promise<{
+  success: boolean;
+  data: { reply: string; timestamp: string };
+}> => {
+  try {
+    const res = await client.post('/group-funds/ai-chat', data);
+    return res.data;
+  } catch (error: any) {
+    console.error('chatGroupFundAI error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update user avatar URL
+ */
+export const updateAvatar = async (avatarUrl: string): Promise<any> => {
+  try {
+    const res = await client.put('/auth/profile/avatar', { avatarUrl });
+    return res.data;
+  } catch (error: any) {
+    console.error('updateAvatar error:', error);
+    throw error;
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Account Management APIs
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const createAccount = async (data: {
+  name: string;
+  balance: number;
+  type: string;
+  currency: string;
+  note?: string;
+  excludeFromReports?: boolean;
+  icon?: string;
+}): Promise<any> => {
+  try {
+    const res = await client.post('/accounts', data);
+    return res.data;
+  } catch (error: any) {
+    console.error('createAccount error:', error);
+    throw error;
+  }
+};
+
+export const getAccounts = async (): Promise<any> => {
+  try {
+    const res = await client.get('/accounts');
+    return res.data;
+  } catch (error: any) {
+    console.error('getAccounts error:', error);
+    throw error;
+  }
+};
+
+export const updateAccount = async (
+  id: string,
+  data: {
+    name?: string;
+    balance?: number;
+    type?: string;
+    currency?: string;
+    note?: string;
+    excludeFromReports?: boolean;
+    icon?: string;
+  },
+): Promise<any> => {
+  try {
+    const res = await client.put(`/accounts/${id}`, data);
+    return res.data;
+  } catch (error: any) {
+    console.error('updateAccount error:', error);
+    throw error;
+  }
+};
+
+export const deleteAccount = async (id: string): Promise<any> => {
+  try {
+    const res = await client.delete(`/accounts/${id}`);
+    return res.data;
+  } catch (error: any) {
+    console.error('deleteAccount error:', error);
+    throw error;
+  }
+};
+
+export const getLoans = async (): Promise<ApiResponse<import('./types').Loan[]>> => {
+  try {
+    const res = await client.get('/loans');
+    return res.data;
+  } catch (error: any) {
+    console.error('getLoans error:', error);
+    throw error;
+  }
+};
+
+export const markLoanAsPaid = async (id: string): Promise<ApiResponse<any>> => {
+  try {
+    const res = await client.put(`/loans/${id}/paid`);
+    return res.data;
+  } catch (error: any) {
+    console.error('markLoanAsPaid error:', error);
+    throw error;
+  }
+};
+
+export const getLoanSummary = async (): Promise<ApiResponse<{ totalDebt: number; totalLent: number; loanCount: number; lentCount: number }>> => {
+  try {
+    const res = await client.get('/loans/summary');
+    return res.data;
+  } catch (error: any) {
+    console.error('getLoanSummary error:', error);
+    throw error;
+  }
+};
+
+export const setDefaultAccount = async (id: string): Promise<any> => {
+  try {
+    const res = await client.put(`/accounts/${id}/set-default`);
+    return res.data;
+  } catch (error: any) {
+    console.error('setDefaultAccount error:', error);
+    throw error;
+  }
+};
+
+export const changePassword = async (data: {
+  currentPassword: string;
+  newPassword: string;
+}): Promise<{ success: boolean; message: string }> => {
+  try {
+    const res = await client.post('/auth/profile/change-password', data);
+    return res.data;
+  } catch (error: any) {
+    console.error('changePassword error:', error);
+    throw error;
+  }
+};
+
+export const updateProfile = async (data: {
+  name: string;
+}): Promise<{ success: boolean; message: string; data?: { user: any } }> => {
+  try {
+    const res = await client.put('/auth/profile', data);
+    return res.data;
+  } catch (error: any) {
+    console.error('updateProfile error:', error);
     throw error;
   }
 };

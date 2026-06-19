@@ -7,11 +7,15 @@ import {
   Platform,
 } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { useNavigation, useNavigationState } from '@react-navigation/native';
+import {
+  useNavigation,
+  useNavigationState,
+  useRoute,
+} from '@react-navigation/native';
 import { HomeStackNavigator } from './HomeStackNavigator';
 import { ReportStackNavigator } from './ReportStackNavigator';
 import { WalletStackNavigator } from './WalletStackNavigator';
-import { ProfileScreen } from '../screen/ProfileScreen';
+import { ProfileStackNavigator } from './ProfileStackNavigator';
 import { ScanStackNavigator } from './ScanStackNavigator';
 import { tabbar } from './dataTabbar';
 import MyTabBar from '../components/MyTabBar';
@@ -23,16 +27,21 @@ const screenComponents: { [key: string]: React.FC<any> | undefined } = {
   wallet: WalletStackNavigator,
   scan: ScanStackNavigator,
   report: ReportStackNavigator,
-  other: ProfileScreen,
+  other: ProfileStackNavigator,
 };
 
-const AIChatFAB = () => {
-  const navigation = useNavigation<any>();
-  const state = useNavigationState(s => s);
+const AIChatFAB = ({
+  currentTabIndex,
+  navigation: navProp,
+}: {
+  currentTabIndex: number;
+  navigation: any;
+}) => {
+  const fallbackNav = useNavigation<any>();
+  const navigation = navProp || fallbackNav;
 
-  // Hide on scan tab
-  const currentTab = state?.routes?.[state.index]?.name;
-  if (currentTab === 'scan') {
+  // Hide on scan tab (index 2)
+  if (currentTabIndex === 2) {
     return null;
   }
 
@@ -47,11 +56,72 @@ const AIChatFAB = () => {
   );
 };
 
+const AddTransactionFAB = ({
+  currentTabIndex,
+  navigation: navProp,
+}: {
+  currentTabIndex: number;
+  navigation: any;
+}) => {
+  const fallbackNav = useNavigation<any>();
+  const navigation = navProp || fallbackNav;
+
+  // Only show on home tab (index 0)
+  if (currentTabIndex !== 0) {
+    return null;
+  }
+
+  const handlePress = () => {
+    // Navigate to AddTransaction in home stack
+    navigation.navigate('home', {
+      screen: 'AddTransaction',
+      params: { type: 'expense' },
+    });
+  };
+
+  return (
+    <TouchableOpacity
+      style={styles.addFab}
+      activeOpacity={0.85}
+      onPress={handlePress}
+    >
+      <Text style={styles.addFabIcon}>+</Text>
+    </TouchableOpacity>
+  );
+};
+
+// Wrapper component to handle tab state updates
+const TabBarWrapper = ({ onTabChange, onNavigationReady, ...props }: any) => {
+  React.useEffect(() => {
+    onTabChange(props.state.index);
+    onNavigationReady(props.navigation);
+  }, [props.state.index, props.navigation, onTabChange, onNavigationReady]);
+
+  return <MyTabBar {...props} />;
+};
+
 export default function BottomTabsNavigator() {
+  const [currentTabIndex, setCurrentTabIndex] = React.useState(0);
+  const [tabNavigation, setTabNavigation] = React.useState<any>(null);
+
+  const handleTabChange = React.useCallback((index: number) => {
+    setCurrentTabIndex(index);
+  }, []);
+
+  const handleNavigationReady = React.useCallback((nav: any) => {
+    setTabNavigation(nav);
+  }, []);
+
   return (
     <View style={styles.container}>
       <Tab.Navigator
-        tabBar={props => <MyTabBar {...props} />}
+        tabBar={props => (
+          <TabBarWrapper
+            {...props}
+            onTabChange={handleTabChange}
+            onNavigationReady={handleNavigationReady}
+          />
+        )}
         screenOptions={{
           headerShown: false,
         }}
@@ -71,7 +141,18 @@ export default function BottomTabsNavigator() {
           );
         })}
       </Tab.Navigator>
-      <AIChatFAB />
+      {tabNavigation && (
+        <>
+          <AddTransactionFAB
+            currentTabIndex={currentTabIndex}
+            navigation={tabNavigation}
+          />
+          <AIChatFAB
+            currentTabIndex={currentTabIndex}
+            navigation={tabNavigation}
+          />
+        </>
+      )}
     </View>
   );
 }
@@ -83,7 +164,7 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 20,
-    bottom: Platform.OS === 'ios' ? 100 : 80,
+    bottom: 80,
     width: 56,
     height: 56,
     borderRadius: 28,
@@ -99,5 +180,28 @@ const styles = StyleSheet.create({
   },
   fabIcon: {
     fontSize: 28,
+  },
+  addFab: {
+    position: 'absolute',
+    right: 20,
+    bottom: Platform.OS === 'ios' ? 145 : 150,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#4CAF50',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#4CAF50',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 999,
+  },
+  addFabIcon: {
+    fontSize: 36,
+    color: '#fff',
+    fontWeight: '300',
+    lineHeight: 42,
   },
 });

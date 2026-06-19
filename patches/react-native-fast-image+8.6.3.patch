@@ -1,0 +1,54 @@
+diff --git a/node_modules/react-native-fast-image/android/.project b/node_modules/react-native-fast-image/android/.project
+new file mode 100644
+index 0000000..d8b90ea
+--- /dev/null
++++ b/node_modules/react-native-fast-image/android/.project
+@@ -0,0 +1,28 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<projectDescription>
++	<name>react-native-fast-image</name>
++	<comment>Project react-native-fast-image created by Buildship.</comment>
++	<projects>
++	</projects>
++	<buildSpec>
++		<buildCommand>
++			<name>org.eclipse.buildship.core.gradleprojectbuilder</name>
++			<arguments>
++			</arguments>
++		</buildCommand>
++	</buildSpec>
++	<natures>
++		<nature>org.eclipse.buildship.core.gradleprojectnature</nature>
++	</natures>
++	<filteredResources>
++		<filter>
++			<id>1776756012238</id>
++			<name></name>
++			<type>30</type>
++			<matcher>
++				<id>org.eclipse.core.resources.regexFilterMatcher</id>
++				<arguments>node_modules|\.git|__CREATED_BY_JAVA_LANGUAGE_SERVER__</arguments>
++			</matcher>
++		</filter>
++	</filteredResources>
++</projectDescription>
+diff --git a/node_modules/react-native-fast-image/android/build.gradle b/node_modules/react-native-fast-image/android/build.gradle
+index 5b21cd5..d266a5a 100644
+--- a/node_modules/react-native-fast-image/android/build.gradle
++++ b/node_modules/react-native-fast-image/android/build.gradle
+@@ -20,11 +20,11 @@ buildscript {
+ apply plugin: 'com.android.library'
+ 
+ android {
+-    compileSdkVersion safeExtGet('compileSdkVersion', 28)
+-    buildToolsVersion safeExtGet('buildToolsVersion', '28.0.3')
++    namespace 'com.dylanvann.fastimage'
++    compileSdkVersion safeExtGet('compileSdkVersion', 34)
+     defaultConfig {
+-        minSdkVersion safeExtGet('minSdkVersion', 16)
+-        targetSdkVersion safeExtGet('targetSdkVersion', 28)
++        minSdkVersion safeExtGet('minSdkVersion', 21)
++        targetSdkVersion safeExtGet('targetSdkVersion', 34)
+         versionCode 1
+         versionName "1.0"
+     }

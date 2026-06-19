@@ -330,6 +330,7 @@ const styles = StyleSheet.create({
   txtContainer: {
     marginHorizontal: 20,
     paddingTop: 16,
+    marginBottom: 16,
   },
   txtContinue: {
     fontSize: 12,
@@ -412,6 +413,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 48,
+    borderRadius: 100,
   },
   inputContainer: {
     paddingVertical: 67,

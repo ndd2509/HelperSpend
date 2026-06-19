@@ -15,7 +15,7 @@ import { getCategories } from '../../apis/apis';
 import type { Category } from '../../apis/types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type TabType = 'expense' | 'income';
+type TabType = 'expense' | 'income' | 'loan';
 
 interface CategoryItem extends Category {
   group?: string;
@@ -23,23 +23,23 @@ interface CategoryItem extends Category {
 
 // ─── Group config ─────────────────────────────────────────────────────────────
 const GROUP_CONFIG: Record<string, { icon: string; color: string }> = {
-  'Ăn uống':          { icon: '🍜', color: '#FF7043' },
-  'Di chuyển':        { icon: '🚗', color: '#42A5F5' },
-  'Mua sắm':          { icon: '🛍️', color: '#EC407A' },
-  'Giải trí':         { icon: '🎮', color: '#AB47BC' },
-  'Sức khỏe':         { icon: '❤️', color: '#EF5350' },
-  'Nhà ở':            { icon: '🏠', color: '#26A69A' },
-  'Hóa đơn':          { icon: '🧾', color: '#FFA726' },
-  'Giáo dục':         { icon: '🎓', color: '#29B6F6' },
-  'Trẻ em':           { icon: '👶', color: '#66BB6A' },
-  'Quà & Từ thiện':   { icon: '🎁', color: '#FF7043' },
-  'Thú cưng':         { icon: '🐾', color: '#8D6E63' },
-  'Ngân hàng':        { icon: '🏦', color: '#5C6BC0' },
-  'Khác':             { icon: '📌', color: '#78909C' },
-  'Thu nhập chính':   { icon: '💼', color: '#43A047' },
-  'Đầu tư':           { icon: '📈', color: '#1E88E5' },
-  'Quà nhận':         { icon: '🎀', color: '#E91E63' },
-  'Thu khác':         { icon: '💡', color: '#FB8C00' },
+  'Ăn uống': { icon: '🍜', color: '#FF7043' },
+  'Di chuyển': { icon: '🚗', color: '#42A5F5' },
+  'Mua sắm': { icon: '🛍️', color: '#EC407A' },
+  'Giải trí': { icon: '🎮', color: '#AB47BC' },
+  'Sức khỏe': { icon: '❤️', color: '#EF5350' },
+  'Nhà ở': { icon: '🏠', color: '#26A69A' },
+  'Hóa đơn': { icon: '🧾', color: '#FFA726' },
+  'Giáo dục': { icon: '🎓', color: '#29B6F6' },
+  'Trẻ em': { icon: '👶', color: '#66BB6A' },
+  'Quà & Từ thiện': { icon: '🎁', color: '#FF7043' },
+  'Thú cưng': { icon: '🐾', color: '#8D6E63' },
+  'Ngân hàng': { icon: '🏦', color: '#5C6BC0' },
+  Khác: { icon: '📌', color: '#78909C' },
+  'Thu nhập chính': { icon: '💼', color: '#43A047' },
+  'Đầu tư': { icon: '📈', color: '#1E88E5' },
+  'Quà nhận': { icon: '🎀', color: '#E91E63' },
+  'Thu khác': { icon: '💡', color: '#FB8C00' },
 };
 
 // Group flat list into rows of 4
@@ -83,6 +83,8 @@ export const SelectCategoryScreen = () => {
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const isLoanMode = initialType === 'loan';
+
   useEffect(() => {
     loadCategories(activeTab);
   }, [activeTab]);
@@ -109,31 +111,88 @@ export const SelectCategoryScreen = () => {
 
   const handleSelect = (cat: CategoryItem) => {
     navigation.navigate('AddTransaction', {
-      selectedCategory: { id: cat.id, name: cat.name, type: cat.type, icon: cat.icon },
+      selectedCategory: {
+        id: cat.id,
+        name: cat.name,
+        type: cat.type,
+        icon: cat.icon,
+      },
       type: activeTab,
     });
   };
 
   const TABS: { key: TabType; label: string }[] = [
-    { key: 'expense', label: 'Chi tiêu' },
-    { key: 'income', label: 'Thu tiêu' },
+    { key: 'expense', label: 'Chi tiền' },
+    { key: 'income', label: 'Thu tiền' },
   ];
+
+  // Loan categories (hardcoded)
+  const LOAN_CATEGORIES: CategoryItem[] = [
+    { id: 'cat-l1', name: 'Đi vay', type: 'loan', icon: '💳', group: 'Vay nợ' },
+    {
+      id: 'cat-l2',
+      name: 'Cho vay',
+      type: 'loan',
+      icon: '🤝',
+      group: 'Vay nợ',
+    },
+  ];
+
+  // If loan mode, show simple loan selection UI
+  if (isLoanMode) {
+    return (
+      <BaseContainer style={styles.container} edges={['top']}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.headerBtn}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.headerBtnText}>←</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Chọn hạng mục</Text>
+          <View style={styles.headerRight} />
+        </View>
+
+        {/* Loan Categories */}
+        <View style={styles.loanContainer}>
+          <Text style={styles.loanTitle}>💳 Vay nợ</Text>
+          {LOAN_CATEGORIES.map(cat => (
+            <TouchableOpacity
+              key={cat.id}
+              style={styles.loanItem}
+              onPress={() => handleSelect(cat)}
+            >
+              <View style={styles.loanIconWrap}>
+                <Text style={styles.loanIcon}>{cat.icon}</Text>
+              </View>
+              <Text style={styles.loanName}>{cat.name}</Text>
+              <Text style={styles.loanArrow}>›</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </BaseContainer>
+    );
+  }
 
   return (
     <BaseContainer style={styles.container} edges={['top']}>
       {/* ── HEADER ──────────────────────────────────────────────────── */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.headerBtn} onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          style={styles.headerBtn}
+          onPress={() => navigation.goBack()}
+        >
           <Text style={styles.headerBtnText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Chọn hạng mục</Text>
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.headerBtn}>
+          {/* <TouchableOpacity style={styles.headerBtn}>
             <Text style={styles.headerIconText}>✏️</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerBtn}>
             <Text style={styles.headerIconText}>⚙️</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
       </View>
 
@@ -192,7 +251,12 @@ export const SelectCategoryScreen = () => {
           stickySectionHeadersEnabled={false}
           renderSectionHeader={({ section }) => (
             <View style={styles.groupHeader}>
-              <View style={[styles.groupIconWrap, { backgroundColor: section.color + '20' }]}>
+              <View
+                style={[
+                  styles.groupIconWrap,
+                  { backgroundColor: section.color + '20' },
+                ]}
+              >
                 <Text style={styles.groupIcon}>{section.icon}</Text>
               </View>
               <Text style={[styles.groupTitle, { color: section.color }]}>
@@ -208,7 +272,12 @@ export const SelectCategoryScreen = () => {
                   style={styles.catItem}
                   onPress={() => handleSelect(cat)}
                 >
-                  <View style={[styles.catIconWrap, { backgroundColor: section.color + '18' }]}>
+                  <View
+                    style={[
+                      styles.catIconWrap,
+                      { backgroundColor: section.color + '18' },
+                    ]}
+                  >
                     <Text style={styles.catIcon}>{cat.icon || '📌'}</Text>
                   </View>
                   <Text style={styles.catName} numberOfLines={2}>
@@ -434,5 +503,56 @@ const styles = StyleSheet.create({
   emptySub: {
     fontSize: 13,
     color: '#aaa',
+  },
+
+  // ── Loan specific
+  loanContainer: {
+    padding: 16,
+  },
+  loanTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 16,
+  },
+  loanItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    gap: 12,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.06,
+        shadowRadius: 4,
+      },
+      android: { elevation: 2 },
+    }),
+  },
+  loanIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#E3F2FD',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loanIcon: {
+    fontSize: 24,
+  },
+  loanName: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  loanArrow: {
+    fontSize: 20,
+    color: '#CCC',
   },
 });

@@ -5,11 +5,11 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   Keyboard,
   Animated,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useKeyboardAnimation } from 'react-native-keyboard-controller';
@@ -21,7 +21,7 @@ import HeaderLogin from '../../components/HeaderLogin';
 import { SvgXml } from 'react-native-svg';
 import { Icon } from '../../assets/svg';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 type RootStackParamList = {
   Login: undefined;
@@ -32,6 +32,14 @@ type RootStackParamList = {
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'PasswordLogin'>;
   route: RouteProp<RootStackParamList, 'PasswordLogin'>;
+};
+
+const ACCENT = '#8662F8';
+
+const formatDisplayPhone = (p: string) => {
+  if (p.length <= 4) return p;
+  if (p.length <= 7) return `${p.slice(0, 4)} ${p.slice(4)}`;
+  return `${p.slice(0, 4)} ${p.slice(4, 7)} ${p.slice(7, 10)}`;
 };
 
 const PasswordLoginScreen = ({ navigation, route }: Props) => {
@@ -45,16 +53,10 @@ const PasswordLoginScreen = ({ navigation, route }: Props) => {
   const { bottom } = useSafeAreaInsets();
   const { height, progress } = useKeyboardAnimation();
 
-  const paddingInput = progress.interpolate({
+  const slideUp = progress.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, -SCREEN_HEIGHT * 0.05],
+    outputRange: [0, -SCREEN_HEIGHT * 0.04],
   });
-
-  const formatDisplayPhone = (p: string) => {
-    if (p.length <= 4) return p;
-    if (p.length <= 7) return `${p.slice(0, 4)} ${p.slice(4)}`;
-    return `${p.slice(0, 4)} ${p.slice(4, 7)} ${p.slice(7, 10)}`;
-  };
 
   const handleLogin = async () => {
     if (!password) {
@@ -72,7 +74,6 @@ const PasswordLoginScreen = ({ navigation, route }: Props) => {
 
     try {
       const response = await requestLogin(phone, password);
-
       if (response.data?.success) {
         const { accessToken, refreshToken, user } = response.data.data;
         await login(accessToken, refreshToken, user);
@@ -80,15 +81,17 @@ const PasswordLoginScreen = ({ navigation, route }: Props) => {
         setErrorMessage(response.data?.message || 'Đăng nhập thất bại');
       }
     } catch (error: any) {
-      const msg =
+      setErrorMessage(
         error?.response?.data?.message ||
-        error?.message ||
-        'Có lỗi xảy ra, vui lòng thử lại';
-      setErrorMessage(msg);
+          error?.message ||
+          'Có lỗi xảy ra, vui lòng thử lại',
+      );
     } finally {
       setTimeout(() => setLoading(false), 300);
     }
   };
+
+  const isReady = password.length >= 6;
 
   return (
     <View style={styles.container}>
@@ -98,80 +101,89 @@ const PasswordLoginScreen = ({ navigation, route }: Props) => {
         onCloseKeyboard={() => Keyboard.dismiss()}
       />
 
-      <View style={{ flex: 1, justifyContent: 'space-between' }}>
-        <View style={styles.viewTitle}>
-          <Text style={styles.txtTitle}>Nhập mật khẩu</Text>
-          <Text style={styles.txtSubtitle}>
-            Đăng nhập cho số {formatDisplayPhone(phone)}
+      {/* ── Content block slides up when keyboard opens ── */}
+      <Animated.View
+        style={[
+          styles.content,
+          { transform: [{ translateY: slideUp }] },
+        ]}>
+
+        {/* Avatar circle */}
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>
+            {phone.slice(-2, -1)}
           </Text>
         </View>
 
-        <Animated.View
-          style={[
-            styles.inputContainer,
-            { transform: [{ translateY: paddingInput }] },
-          ]}
-        >
-          <View style={styles.inputView}>
-            <View style={styles.flexContainerInput}>
-              <TextInput
-                ref={refPasswordInput}
-                placeholderTextColor={'#A5A5A5'}
-                style={styles.inputStyle}
-                placeholder="Mật khẩu"
-                value={password}
-                onChangeText={text => {
-                  setPassword(text);
-                  setErrorMessage(null);
-                }}
-                secureTextEntry={!showPassword}
-                autoFocus
-                cursorColor={'#8662F8'}
-              />
-            </View>
+        {/* Greeting */}
+        <Text style={styles.title}>Xin chào!</Text>
+        <Text style={styles.phone}>{formatDisplayPhone(phone)}</Text>
+
+        {/* Input card */}
+        <View style={styles.card}>
+          <Text style={styles.cardLabel}>Mật khẩu</Text>
+          <View
+            style={[
+              styles.inputRow,
+              errorMessage ? styles.inputRowError : null,
+            ]}>
+            <TextInput
+              ref={refPasswordInput}
+              style={styles.input}
+              placeholder="Nhập mật khẩu của bạn"
+              placeholderTextColor="#C4C4C4"
+              value={password}
+              onChangeText={text => {
+                setPassword(text);
+                setErrorMessage(null);
+              }}
+              secureTextEntry={!showPassword}
+              autoFocus
+              returnKeyType="done"
+              onSubmitEditing={handleLogin}
+              cursorColor={ACCENT}
+            />
             <TouchableOpacity
-              style={styles.togglePassword}
-              onPress={() => setShowPassword(!showPassword)}
-            >
-              <Text style={styles.toggleText}>
-                {showPassword ? 'Ẩn' : 'Hiện'}
+              onPress={() => setShowPassword(v => !v)}
+              style={styles.eyeBtn}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Text style={styles.eyeIcon}>
+                {showPassword ? '🙈' : '👁'}
               </Text>
             </TouchableOpacity>
           </View>
 
+          {/* Error */}
           {errorMessage && (
-            <View style={styles.containerErrMsg}>
-              <SvgXml xml={Icon.ic_error} style={styles.iconStyle} />
-              <Text style={styles.errTxtInput}>{errorMessage}</Text>
+            <View style={styles.errorRow}>
+              <SvgXml xml={Icon.ic_error} style={styles.errorIcon} />
+              <Text style={styles.errorText}>{errorMessage}</Text>
             </View>
           )}
-        </Animated.View>
+        </View>
+      </Animated.View>
 
-        <Animated.View
-          style={{
+      {/* ── Button floats above keyboard ── */}
+      <Animated.View
+        style={[
+          styles.footer,
+          {
             transform: [{ translateY: height }],
-            paddingBottom: bottom,
-          }}
-        >
-          <TouchableOpacity
-            onPress={handleLogin}
-            style={[
-              styles.btnLogin,
-              {
-                backgroundColor:
-                  password.length >= 6 ? '#252525' : '#A5A5A5',
-              },
-            ]}
-            disabled={password.length < 6 || loading}
-          >
-            {loading ? (
-              <ActivityIndicator color={'#fff'} />
-            ) : (
-              <Text style={styles.txtBtnLogin}>Đăng nhập</Text>
-            )}
-          </TouchableOpacity>
-        </Animated.View>
-      </View>
+            paddingBottom: bottom + 16,
+          },
+        ]}>
+        <TouchableOpacity
+          style={[styles.btn, !isReady && styles.btnDisabled]}
+          onPress={handleLogin}
+          disabled={!isReady || loading}
+          activeOpacity={0.85}>
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.btnText}>Đăng nhập</Text>
+          )}
+        </TouchableOpacity>
+      </Animated.View>
     </View>
   );
 };
@@ -179,79 +191,149 @@ const PasswordLoginScreen = ({ navigation, route }: Props) => {
 export default PasswordLoginScreen;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  viewTitle: {
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+
+  // ── Content ──
+  content: {
+    flex: 1,
     alignItems: 'center',
     paddingTop: 20,
+    paddingHorizontal: 24,
   },
-  txtTitle: {
-    color: '#252525',
-    fontSize: 24,
-    fontWeight: '600',
-    lineHeight: 32,
-  },
-  txtSubtitle: {
-    color: '#666',
-    fontSize: 14,
-    fontWeight: '400',
-    lineHeight: 20,
-    marginTop: 8,
-  },
-  inputContainer: {
-    paddingVertical: 40,
-    paddingHorizontal: 20,
-    width: '100%',
-  },
-  inputView: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderBottomWidth: 1.5,
-    borderBottomColor: '#E0E0E0',
-    paddingBottom: 8,
-  },
-  flexContainerInput: {
-    flex: 1,
-  },
-  inputStyle: {
-    color: '#252525',
-    fontSize: 20,
-    fontWeight: '500',
-    lineHeight: 28,
-  },
-  togglePassword: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  toggleText: {
-    color: '#8662F8',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  containerErrMsg: {
-    flexDirection: 'row',
-    marginTop: 8,
-  },
-  iconStyle: {
-    alignSelf: 'center',
-  },
-  errTxtInput: {
-    fontSize: 14,
-    fontWeight: '400',
-    lineHeight: 21,
-    marginLeft: 4,
-    color: '#C02344',
-  },
-  btnLogin: {
-    marginHorizontal: 20,
+
+  // Avatar
+  avatar: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: ACCENT + '18',
+    borderWidth: 2,
+    borderColor: ACCENT + '30',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 48,
-    borderRadius: 100,
+    marginBottom: 16,
   },
-  txtBtnLogin: {
-    color: '#fff',
-    fontSize: 16,
+  avatarText: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: ACCENT,
+  },
+
+  // Title
+  title: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#1A1A2E',
+    marginBottom: 4,
+  },
+  phone: {
+    fontSize: 15,
+    color: '#888',
+    fontWeight: '400',
+    marginBottom: 32,
+  },
+
+  // Input card
+  card: {
+    width: '100%',
+    backgroundColor: '#F8F7FF',
+    borderRadius: 20,
+    padding: 20,
+    ...Platform.select({
+      ios: {
+        shadowColor: ACCENT,
+        shadowOpacity: 0.07,
+        shadowRadius: 16,
+        shadowOffset: { width: 0, height: 4 },
+      },
+      android: { elevation: 2 },
+    }),
+  },
+  cardLabel: {
+    fontSize: 13,
     fontWeight: '600',
-    lineHeight: 24,
+    color: '#888',
+    marginBottom: 10,
+    letterSpacing: 0.3,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#EDE9FD',
+    paddingHorizontal: 16,
+    height: 52,
+  },
+  inputRowError: {
+    borderColor: '#F43F5E',
+  },
+  input: {
+    flex: 1,
+    fontSize: 17,
+    color: '#1A1A2E',
+    fontWeight: '500',
+    textAlignVertical: 'center',
+    paddingVertical: 0,
+  },
+  eyeBtn: {
+    paddingLeft: 8,
+  },
+  eyeIcon: {
+    fontSize: 18,
+  },
+
+  // Error
+  errorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+    gap: 6,
+  },
+  errorIcon: {
+    alignSelf: 'center',
+  },
+  errorText: {
+    fontSize: 13,
+    color: '#F43F5E',
+    fontWeight: '500',
+    flex: 1,
+  },
+
+  // ── Footer button ──
+  footer: {
+    paddingHorizontal: 24,
+    backgroundColor: '#fff',
+  },
+  btn: {
+    backgroundColor: ACCENT,
+    height: 54,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: ACCENT,
+        shadowOpacity: 0.4,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 6 },
+      },
+      android: { elevation: 8 },
+    }),
+  },
+  btnDisabled: {
+    backgroundColor: '#D1C4F7',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  btnText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#fff',
+    letterSpacing: 0.3,
   },
 });

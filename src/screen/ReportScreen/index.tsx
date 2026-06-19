@@ -8,13 +8,22 @@ import {
   Dimensions,
   ActivityIndicator,
   RefreshControl,
+  Alert,
+  Linking,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { getDashboardSummary, getTransactions } from '../../apis/apis';
+import {
+  getDashboardSummary,
+  getTransactions,
+  exportTransactionsExcel,
+  getLoanSummary,
+} from '../../apis/apis';
 import type { DashboardSummary, Transaction } from '../../apis/types';
 import { BaseContainer } from 'react-native-shared-components';
 
 const { width } = Dimensions.get('window');
+
+const SERVER_BASE_URL = 'http://10.3.50.239:3000';
 
 const ReportScreen = ({ navigation }: any) => {
   const [data, setData] = useState<DashboardSummary | null>(null);
@@ -22,6 +31,8 @@ const ReportScreen = ({ navigation }: any) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [loanDebt, setLoanDebt] = useState(0);
 
   const now = new Date();
   const [selectedMonth] = useState(now.getMonth());
@@ -63,9 +74,21 @@ const ReportScreen = ({ navigation }: any) => {
     }
   };
 
+  const loadLoanSummary = async () => {
+    try {
+      const response = await getLoanSummary();
+      if (response.success && response.data) {
+        setLoanDebt(response.data.totalDebt);
+      }
+    } catch (err) {
+      console.error('Error loading loan summary:', err);
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       loadDashboard();
+      loadLoanSummary();
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedMonth, selectedYear]),
   );
@@ -75,10 +98,44 @@ const ReportScreen = ({ navigation }: any) => {
     loadDashboard(true);
   };
 
-  const totalBalance = data?.balance || 0;
-  const totalIncome = data?.monthlyIncome || 0;
+  const handleExportExcel = async () => {
+    try {
+      setExporting(true);
+      const result = await exportTransactionsExcel();
+      if (result.success && result.data) {
+        const downloadUrl = `${SERVER_BASE_URL}${result.data.downloadPath}`;
+        Alert.alert(
+          'Xuất Excel thành công',
+          `Đã tạo file với ${
+            result.data.totalTransactions
+          } giao dịch trong ${result.data.months.join(
+            ', ',
+          )}.\n\nNhấn "Tải xuống" để mở file.`,
+          [
+            { text: 'Hủy', style: 'cancel' },
+            {
+              text: 'Tải xuống',
+              onPress: () => Linking.openURL(downloadUrl),
+            },
+          ],
+        );
+      } else {
+        Alert.alert('Lỗi', result.message || 'Không thể xuất file Excel');
+      }
+    } catch (err: any) {
+      Alert.alert(
+        'Lỗi',
+        err?.response?.data?.message || 'Lỗi khi xuất file Excel',
+      );
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const totalCo = (data?.balance || 0) + loanDebt;
+  const totalBalance = totalCo - loanDebt;
   const totalExpense = data?.monthlyExpenses || 0;
-  const totalDebt = 0; // Sẽ tạo màn hình riêng cho nợ sau
+  const totalDebt = loanDebt;
 
   // Calculate monthly data for last 5 months
   const getLast5MonthsData = () => {
@@ -135,10 +192,34 @@ const ReportScreen = ({ navigation }: any) => {
   };
 
   const reportItems = [
-    { id: 1, icon: '📊', title: 'Phân tích chi tiêu', color: '#007AFF', aiType: 'expense' },
-    { id: 2, icon: '📈', title: 'Phân tích thu', color: '#34C759', aiType: 'income' },
-    { id: 4, icon: '👥', title: 'Đối tượng thu/chi', color: '#AF52DE', aiType: 'category' },
-    { id: 6, icon: '💰', title: 'Phân tích tài chính', color: '#5856D6', aiType: 'financial' },
+    {
+      id: 1,
+      icon: '📊',
+      title: 'Phân tích chi tiêu',
+      color: '#007AFF',
+      aiType: 'expense',
+    },
+    {
+      id: 2,
+      icon: '📈',
+      title: 'Phân tích thu',
+      color: '#34C759',
+      aiType: 'income',
+    },
+    {
+      id: 4,
+      icon: '👥',
+      title: 'Đối tượng thu/chi',
+      color: '#AF52DE',
+      aiType: 'category',
+    },
+    {
+      id: 6,
+      icon: '💰',
+      title: 'Phân tích tài chính',
+      color: '#5856D6',
+      aiType: 'financial',
+    },
   ];
 
   if (loading && !data) {
@@ -169,6 +250,18 @@ const ReportScreen = ({ navigation }: any) => {
       >
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Báo cáo</Text>
+          <TouchableOpacity
+            style={styles.exportButton}
+            onPress={handleExportExcel}
+            disabled={exporting}
+            activeOpacity={0.7}
+          >
+            {exporting ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.exportButtonText}>📊 Xuất Excel</Text>
+            )}
+          </TouchableOpacity>
         </View>
 
         <View style={styles.summaryCard}>
@@ -184,7 +277,7 @@ const ReportScreen = ({ navigation }: any) => {
               style={styles.summaryItem}
               onPress={() =>
                 navigation.navigate('BalanceDetailScreen', {
-                  totalCo: totalBalance,
+                  totalCo: totalCo,
                   totalNo: totalDebt,
                 })
               }
@@ -192,7 +285,7 @@ const ReportScreen = ({ navigation }: any) => {
               <Text style={styles.summaryLabel}>Tổng có</Text>
               <View style={styles.summaryValueContainer}>
                 <Text style={styles.summaryValue}>
-                  {totalIncome.toLocaleString('vi-VN')} đ
+                  {totalCo.toLocaleString('vi-VN')} đ
                 </Text>
                 <Text style={styles.summaryArrow}>→</Text>
               </View>
@@ -204,7 +297,7 @@ const ReportScreen = ({ navigation }: any) => {
               style={styles.summaryItem}
               onPress={() =>
                 navigation.navigate('BalanceDetailScreen', {
-                  totalCo: totalBalance,
+                  totalCo: totalCo,
                   totalNo: totalDebt,
                 })
               }
@@ -337,16 +430,32 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: '#FFFFFF',
-    paddingVertical: 16,
+    paddingVertical: 12,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5EA',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    textAlign: 'center',
     color: '#000000',
+  },
+  exportButton: {
+    backgroundColor: '#34C759',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    minWidth: 110,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  exportButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
   },
   summaryCard: {
     backgroundColor: '#007AFF',

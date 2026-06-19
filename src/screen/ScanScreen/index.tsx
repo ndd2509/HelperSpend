@@ -17,7 +17,7 @@ import {
   useCodeScanner,
   useCameraPermission,
 } from 'react-native-vision-camera';
-import { useIsFocused, useNavigation } from '@react-navigation/native';
+import { useIsFocused, useNavigation, useRoute } from '@react-navigation/native';
 import { checkWalletForTransfer } from '../../apis/apis';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -30,6 +30,13 @@ interface ScannedResult {
 const ScanScreen = () => {
   const isFocused = useIsFocused();
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+
+  // Fund spend mode params
+  const fundSpendMode = route.params?.mode === 'fund_spend';
+  const fundId: string | undefined = route.params?.fundId;
+  const fundName: string | undefined = route.params?.fundName;
+  const fundAmount: number = route.params?.fundAmount ?? 0;
 
   const { hasPermission, requestPermission } = useCameraPermission();
   const [permissionChecked, setPermissionChecked] = useState(false);
@@ -59,7 +66,14 @@ const ScanScreen = () => {
   useEffect(() => {
     if (isFocused) {
       setResult(null);
-      checkWallet();
+      if (!fundSpendMode) {
+        checkWallet();
+      } else {
+        // Fund spend mode: không cần check ví, dùng số dư quỹ từ params
+        setWalletChecking(false);
+        setCanTransfer(fundAmount > 0);
+        setIsActive(fundAmount > 0);
+      }
     } else {
       setIsActive(false);
     }
@@ -92,8 +106,37 @@ const ScanScreen = () => {
     if (!code?.value || result) { return; }
     setIsActive(false);
     setResult({ value: code.value, type: code.type });
+
+    // Fund spend mode: luôn navigate sang GroupFundSpend sau khi quét
+    if (fundSpendMode) {
+      navigation.navigate('GroupFundSpend', {
+        qrValue: code.value,
+        fundId,
+        fundName,
+        fundAmount,
+      });
+      return;
+    }
+
+    const GROUP_FUND_SCHEME = 'helperSpend://group-fund/';
+    if (code.value.startsWith(GROUP_FUND_SCHEME)) {
+      const rest = code.value.slice(GROUP_FUND_SCHEME.length);
+      const [fundIdParam, qs = ''] = rest.split('?');
+      const getParam = (key: string) => {
+        const match = qs.match(new RegExp(`(?:^|&)${key}=([^&]*)`));
+        return match ? decodeURIComponent(match[1] ?? '') : '';
+      };
+      navigation.navigate('GroupFundContribute', {
+        fundId: fundIdParam,
+        amount: getParam('amount'),
+        note: getParam('note'),
+      });
+      return;
+    }
+
     navigation.navigate('Transfer', { qrValue: code.value });
-  }, [result, navigation]);
+  }, [result, navigation, fundSpendMode, fundId, fundName, fundAmount]);
+
 
   const codeScanner = useCodeScanner({
     codeTypes: ['qr', 'ean-13', 'ean-8', 'code-128', 'code-39'],
@@ -161,20 +204,35 @@ const ScanScreen = () => {
   if (!walletChecking && !canTransfer) {
     return (
       <View style={styles.center}>
-        <Text style={styles.permEmoji}>💰</Text>
-        <Text style={styles.permTitle}>Ví chưa có tiền</Text>
+        <Text style={styles.permEmoji}>{fundSpendMode ? '💳' : '💰'}</Text>
+        <Text style={styles.permTitle}>
+          {fundSpendMode ? 'Quỹ chưa có tiền' : 'Ví chưa có tiền'}
+        </Text>
         <Text style={styles.permSub}>
-          Bạn cần có tiền trong ví để chuyển khoản.{'\n'}
-          Vui lòng yêu cầu admin nạp tiền hoặc nhận chuyển khoản từ người khác.
+          {fundSpendMode
+            ? `Quỹ "${fundName}" hiện không có tiền để chi.\nVui lòng thu thêm tiền vào quỹ trước khi chi.`
+            : `Bạn cần có tiền trong ví để chuyển khoản.\nVui lòng yêu cầu admin nạp tiền hoặc nhận chuyển khoản từ người khác.`
+          }
         </Text>
         <Text style={styles.walletBalanceText}>
-          Số dư ví: {formatCurrency(walletBalance)}
+          {fundSpendMode
+            ? `Số dư quỹ: ${formatCurrency(fundAmount)} ₫`
+            : `Số dư ví: ${formatCurrency(walletBalance)}`
+          }
         </Text>
         <TouchableOpacity
           style={styles.permBtn}
-          onPress={() => navigation.navigate('wallet')}
+          onPress={() => {
+            if (navigation.canGoBack()) {
+              navigation.goBack();
+            } else {
+              navigation.navigate('Tabs', { screen: 'wallet' });
+            }
+          }}
         >
-          <Text style={styles.permBtnText}>Đến trang Ví</Text>
+          <Text style={styles.permBtnText}>
+            {fundSpendMode ? 'Quay lại' : 'Đến trang Ví'}
+          </Text>
         </TouchableOpacity>
       </View>
     );
@@ -226,13 +284,35 @@ const ScanScreen = () => {
         <View style={styles.maskBottom} />
       </View>
 
+      {/* Back button */}
+      <TouchableOpacity
+        style={styles.backBtn}
+        onPress={() => {
+          if (navigation.canGoBack()) {
+            navigation.goBack();
+          } else {
+            navigation.navigate('Tabs', { screen: 'wallet' });
+          }
+        }}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.backBtnText}>‹</Text>
+      </TouchableOpacity>
+
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Quét mã QR</Text>
-        <Text style={styles.headerSub}>Đưa mã QR vào khung để quét</Text>
+        <Text style={styles.headerTitle}>
+          {fundSpendMode ? 'Quét QR để chi quỹ' : 'Quét mã QR'}
+        </Text>
+        <Text style={styles.headerSub}>
+          {fundSpendMode ? `Chi từ quỹ: ${fundName}` : 'Đưa mã QR vào khung để quét'}
+        </Text>
         <View style={styles.walletBadge}>
           <Text style={styles.walletBadgeText}>
-            Ví: {formatCurrency(walletBalance)}
+            {fundSpendMode
+              ? `Số dư quỹ: ${formatCurrency(fundAmount)} ₫`
+              : `Ví: ${formatCurrency(walletBalance)}`
+            }
           </Text>
         </View>
       </View>
@@ -330,6 +410,27 @@ const styles = StyleSheet.create({
     color: '#FF6B6B',
     marginTop: 12,
     marginBottom: 20,
+  },
+
+  // ── Back button
+  backBtn: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 56 : 24,
+    left: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  backBtnText: {
+    fontSize: 26,
+    color: '#fff',
+    fontWeight: '600',
+    lineHeight: 30,
+    marginLeft: -2,
   },
 
   // ── Header

@@ -44,7 +44,9 @@ export const WalletScreen = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'deposit' | 'sync' | 'transfer'>('deposit');
+  const [activeTab, setActiveTab] = useState<'deposit' | 'sync' | 'transfer'>(
+    'deposit',
+  );
   const autoSyncTriggered = useRef(false);
 
   const loadData = async (isRefresh = false) => {
@@ -121,7 +123,8 @@ export const WalletScreen = () => {
   const walletBalance = data?.walletBalance ?? 0;
   const receivedTransfers = data?.receivedTransfers ?? 0;
   const sentTransfers = data?.sentTransfers ?? 0;
-  const syncedPct = totalDeposited > 0 ? (syncedTotal / totalDeposited) * 100 : 0;
+  const syncedPct =
+    totalDeposited > 0 ? (syncedTotal / totalDeposited) * 100 : 0;
 
   return (
     <BaseContainer style={styles.container} edges={['top']}>
@@ -129,7 +132,11 @@ export const WalletScreen = () => {
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#fff"
+          />
         }
       >
         {/* ── HEADER ──────────────────────────────────────────────────── */}
@@ -140,7 +147,6 @@ export const WalletScreen = () => {
           <View style={styles.headerTopRow}>
             <View>
               <Text style={styles.headerTitle}>Ví của tôi</Text>
-              <Text style={styles.headerSub}>Tiền nạp từ admin</Text>
             </View>
             <TouchableOpacity
               style={styles.depositHeaderBtn}
@@ -151,10 +157,12 @@ export const WalletScreen = () => {
             </TouchableOpacity>
           </View>
 
-        {/* Balance card */}
+          {/* Balance card */}
           <View style={styles.balanceCard}>
             <Text style={styles.balanceLbl}>Số dư ví hiện tại</Text>
-            <Text style={styles.balanceAmt}>{formatCurrency(walletBalance)}</Text>
+            <Text style={styles.balanceAmt}>
+              {formatCurrency(walletBalance)}
+            </Text>
 
             <View style={styles.walletDetailRow}>
               <View style={styles.walletDetailItem}>
@@ -186,19 +194,19 @@ export const WalletScreen = () => {
                 ]}
               />
             </View>
-            <View style={styles.progressLabels}>
+            {/* <View style={styles.progressLabels}>
               <Text style={styles.progressLbl}>
                 Đã sync: {formatCurrency(syncedTotal)}
               </Text>
               <Text style={styles.progressLbl}>
                 Chờ sync: {formatCurrency(pendingSync)}
               </Text>
-            </View>
+            </View> */}
           </View>
         </View>
 
         {/* ── PENDING SYNC CARD ────────────────────────────────────────── */}
-        <View style={[styles.pendingCard, !canSync && styles.pendingCardEmpty]}>
+        {/* <View style={[styles.pendingCard, !canSync && styles.pendingCardEmpty]}>
           <View style={styles.pendingLeft}>
             <Text style={styles.pendingLbl}>Đồng bộ tự động</Text>
             <Text style={[styles.pendingAmt, !canSync && styles.pendingAmtZero, pendingSync < 0 && { color: '#F44336' }]}>
@@ -220,7 +228,7 @@ export const WalletScreen = () => {
           {syncing && (
             <ActivityIndicator size="small" color="#5C6BC0" style={{ marginRight: 8 }} />
           )}
-        </View>
+        </View> */}
 
         {/* ── ACTION ROW ──────────────────────────────────────────────── */}
         <View style={styles.actionRow}>
@@ -228,7 +236,9 @@ export const WalletScreen = () => {
             style={styles.actionBtn}
             onPress={() => navigation.navigate('DepositRequest')}
           >
-            <View style={[styles.actionIconWrap, { backgroundColor: '#E8F5E9' }]}>
+            <View
+              style={[styles.actionIconWrap, { backgroundColor: '#E8F5E9' }]}
+            >
               <Text style={styles.actionIcon}>💳</Text>
             </View>
             <Text style={styles.actionLabel}>Nạp tiền</Text>
@@ -236,12 +246,38 @@ export const WalletScreen = () => {
 
           <TouchableOpacity
             style={styles.actionBtn}
-            onPress={() => navigation.navigate('TransferMoney')}
+            onPress={() => (navigation as any).navigate('ScanMain')}
           >
-            <View style={[styles.actionIconWrap, { backgroundColor: '#EDE7F6' }]}>
+            <View
+              style={[styles.actionIconWrap, { backgroundColor: '#EDE7F6' }]}
+            >
               <Text style={styles.actionIcon}>💸</Text>
             </View>
             <Text style={styles.actionLabel}>Chuyển tiền</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => navigation.navigate('QRPayment')}
+          >
+            <View
+              style={[styles.actionIconWrap, { backgroundColor: '#E8EAF6' }]}
+            >
+              <Text style={styles.actionIcon}>📲</Text>
+            </View>
+            <Text style={styles.actionLabel}>Mã QR</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => navigation.navigate('GroupFundList')}
+          >
+            <View
+              style={[styles.actionIconWrap, { backgroundColor: '#EDE7F6' }]}
+            >
+              <Text style={styles.actionIcon}>🏦</Text>
+            </View>
+            <Text style={styles.actionLabel}>Quỹ nhóm</Text>
           </TouchableOpacity>
         </View>
 
@@ -251,7 +287,12 @@ export const WalletScreen = () => {
             style={[styles.tab, activeTab === 'deposit' && styles.tabActive]}
             onPress={() => setActiveTab('deposit')}
           >
-            <Text style={[styles.tabText, activeTab === 'deposit' && styles.tabTextActive]}>
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === 'deposit' && styles.tabTextActive,
+              ]}
+            >
               Nạp ({data?.deposits.length ?? 0})
             </Text>
           </TouchableOpacity>
@@ -259,7 +300,12 @@ export const WalletScreen = () => {
             style={[styles.tab, activeTab === 'transfer' && styles.tabActive]}
             onPress={() => setActiveTab('transfer')}
           >
-            <Text style={[styles.tabText, activeTab === 'transfer' && styles.tabTextActive]}>
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === 'transfer' && styles.tabTextActive,
+              ]}
+            >
               Chuyển ({data?.transferHistory?.length ?? 0})
             </Text>
           </TouchableOpacity>
@@ -267,7 +313,12 @@ export const WalletScreen = () => {
             style={[styles.tab, activeTab === 'sync' && styles.tabActive]}
             onPress={() => setActiveTab('sync')}
           >
-            <Text style={[styles.tabText, activeTab === 'sync' && styles.tabTextActive]}>
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === 'sync' && styles.tabTextActive,
+              ]}
+            >
               Đồng bộ ({data?.syncHistory.length ?? 0})
             </Text>
           </TouchableOpacity>
@@ -296,19 +347,28 @@ export const WalletScreen = () => {
                     i < data.deposits.length - 1 && styles.listItemBorder,
                   ]}
                 >
-                  <View style={[
-                    styles.listIconWrap,
-                    d.synced ? styles.listIconSynced : styles.listIconPending,
-                  ]}>
-                    <Text style={styles.listIcon}>{d.synced ? '✅' : '⏳'}</Text>
-                  </View>
-                  <View style={styles.listInfo}>
-                    <Text style={styles.listTitle}>{d.description || 'Nạp tiền'}</Text>
-                    <Text style={styles.listDate}>
-                      {formatDate(d.date)} · {d.synced ? 'Đã đồng bộ' : 'Chờ đồng bộ'}
+                  <View
+                    style={[
+                      styles.listIconWrap,
+                      d.synced ? styles.listIconSynced : styles.listIconPending,
+                    ]}
+                  >
+                    <Text style={styles.listIcon}>
+                      {d.synced ? '✅' : '⏳'}
                     </Text>
                   </View>
-                  <Text style={styles.listAmountIn}>+{formatCurrency(d.amount)}</Text>
+                  <View style={styles.listInfo}>
+                    <Text style={styles.listTitle}>
+                      {d.description || 'Nạp tiền'}
+                    </Text>
+                    <Text style={styles.listDate}>
+                      {formatDate(d.date)} ·{' '}
+                      {d.synced ? 'Đã đồng bộ' : 'Chờ đồng bộ'}
+                    </Text>
+                  </View>
+                  <Text style={styles.listAmountIn}>
+                    +{formatCurrency(d.amount)}
+                  </Text>
                 </View>
               ))
             )
@@ -316,7 +376,9 @@ export const WalletScreen = () => {
             (data?.transferHistory?.length ?? 0) === 0 ? (
               <View style={styles.emptyBox}>
                 <Text style={styles.emptyEmoji}>💸</Text>
-                <Text style={styles.emptyText}>Chưa có giao dịch chuyển khoản</Text>
+                <Text style={styles.emptyText}>
+                  Chưa có giao dịch chuyển khoản
+                </Text>
               </View>
             ) : (
               data?.transferHistory?.map((t, i) => {
@@ -326,25 +388,38 @@ export const WalletScreen = () => {
                     key={t.id}
                     style={[
                       styles.listItem,
-                      i < (data?.transferHistory?.length ?? 0) - 1 && styles.listItemBorder,
+                      i < (data?.transferHistory?.length ?? 0) - 1 &&
+                        styles.listItemBorder,
                     ]}
                   >
-                    <View style={[
-                      styles.listIconWrap,
-                      isReceived ? styles.listIconSynced : styles.listIconTransferOut,
-                    ]}>
-                      <Text style={styles.listIcon}>{isReceived ? '⬇️' : '⬆️'}</Text>
+                    <View
+                      style={[
+                        styles.listIconWrap,
+                        isReceived
+                          ? styles.listIconSynced
+                          : styles.listIconTransferOut,
+                      ]}
+                    >
+                      <Text style={styles.listIcon}>
+                        {isReceived ? '⬇️' : '⬆️'}
+                      </Text>
                     </View>
                     <View style={styles.listInfo}>
                       <Text style={styles.listTitle}>
-                        {t.description || (isReceived ? 'Nhận chuyển khoản' : 'Chuyển tiền')}
+                        {t.description ||
+                          (isReceived ? 'Nhận chuyển khoản' : 'Chuyển tiền')}
                       </Text>
                       <Text style={styles.listDate}>
                         {formatDate(t.date)} · {isReceived ? 'Nhận' : 'Gửi'}
                       </Text>
                     </View>
-                    <Text style={isReceived ? styles.listAmountIn : styles.listAmountOut}>
-                      {isReceived ? '+' : '-'}{formatCurrency(t.amount)}
+                    <Text
+                      style={
+                        isReceived ? styles.listAmountIn : styles.listAmountOut
+                      }
+                    >
+                      {isReceived ? '+' : '-'}
+                      {formatCurrency(t.amount)}
                     </Text>
                   </View>
                 );
@@ -368,10 +443,14 @@ export const WalletScreen = () => {
                   <Text style={styles.listIcon}>⇄</Text>
                 </View>
                 <View style={styles.listInfo}>
-                  <Text style={styles.listTitle}>{s.category || 'Đồng bộ từ ví'}</Text>
+                  <Text style={styles.listTitle}>
+                    {s.category || 'Đồng bộ từ ví'}
+                  </Text>
                   <Text style={styles.listDate}>{formatDate(s.date)}</Text>
                 </View>
-                <Text style={styles.listAmountSync}>+{formatCurrency(s.amount)}</Text>
+                <Text style={styles.listAmountSync}>
+                  +{formatCurrency(s.amount)}
+                </Text>
               </View>
             ))
           )}
@@ -398,13 +477,21 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   circleA: {
-    position: 'absolute', top: -50, right: -50,
-    width: 180, height: 180, borderRadius: 90,
+    position: 'absolute',
+    top: -50,
+    right: -50,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
     backgroundColor: 'rgba(255,255,255,0.1)',
   },
   circleB: {
-    position: 'absolute', bottom: -30, left: -20,
-    width: 130, height: 130, borderRadius: 65,
+    position: 'absolute',
+    bottom: -30,
+    left: -20,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
     backgroundColor: 'rgba(255,255,255,0.07)',
   },
   headerTopRow: {
@@ -413,23 +500,43 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 20,
   },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: '#fff', marginBottom: 4 },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#fff',
+    marginBottom: 4,
+  },
   headerSub: { fontSize: 13, color: 'rgba(255,255,255,0.7)' },
   depositHeaderBtn: {
-    flexDirection: 'row', alignItems: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.25)',
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, gap: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 4,
   },
-  depositHeaderBtnIcon: { fontSize: 20, color: '#fff', fontWeight: '300', lineHeight: 22 },
+  depositHeaderBtnIcon: {
+    fontSize: 20,
+    color: '#fff',
+    fontWeight: '300',
+    lineHeight: 22,
+  },
   depositHeaderBtnText: { fontSize: 13, color: '#fff', fontWeight: '700' },
 
   // ── Balance card
   balanceCard: {
     backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 16, padding: 18,
+    borderRadius: 16,
+    padding: 18,
   },
   balanceLbl: { fontSize: 12, color: 'rgba(255,255,255,0.7)', marginBottom: 4 },
-  balanceAmt: { fontSize: 28, fontWeight: '800', color: '#fff', marginBottom: 12 },
+  balanceAmt: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#fff',
+    marginBottom: 12,
+  },
   walletDetailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -439,14 +546,24 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   walletDetailItem: { alignItems: 'center', flex: 1 },
-  walletDetailLbl: { fontSize: 10, color: 'rgba(255,255,255,0.6)', marginBottom: 2 },
+  walletDetailLbl: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.6)',
+    marginBottom: 2,
+  },
   walletDetailVal: { fontSize: 12, fontWeight: '700', color: '#fff' },
   progressTrack: {
-    height: 6, backgroundColor: 'rgba(255,255,255,0.25)',
-    borderRadius: 3, overflow: 'hidden',
+    height: 6,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    borderRadius: 3,
+    overflow: 'hidden',
   },
   progressFill: { height: '100%', backgroundColor: '#4CAF50', borderRadius: 3 },
-  progressLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
+  progressLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
   progressLbl: { fontSize: 11, color: 'rgba(255,255,255,0.75)' },
 
   // ── Pending card
@@ -471,14 +588,27 @@ const styles = StyleSheet.create({
   },
   pendingCardEmpty: { opacity: 0.7 },
   pendingLeft: { flex: 1 },
-  pendingLbl: { fontSize: 12, color: '#888', fontWeight: '600', marginBottom: 4 },
-  pendingAmt: { fontSize: 26, fontWeight: '800', color: '#5C6BC0', marginBottom: 4 },
+  pendingLbl: {
+    fontSize: 12,
+    color: '#888',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  pendingAmt: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#5C6BC0',
+    marginBottom: 4,
+  },
   pendingAmtZero: { color: '#BBBBBB' },
   pendingHint: { fontSize: 12, color: '#999', lineHeight: 16 },
   syncBtn: {
-    width: 64, height: 64, borderRadius: 32,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: '#5C6BC0',
-    alignItems: 'center', justifyContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     ...Platform.select({
       ios: {
         shadowColor: '#5C6BC0',
@@ -491,37 +621,55 @@ const styles = StyleSheet.create({
   },
   syncBtnDisabled: { backgroundColor: '#DDDDDD' },
   syncBtnText: {
-    fontSize: 11, fontWeight: '700', color: '#fff',
-    textAlign: 'center', lineHeight: 16,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#fff',
+    textAlign: 'center',
+    lineHeight: 16,
   },
 
   // ── Action Row
   actionRow: {
-    flexDirection: 'row', gap: 12,
-    marginTop: 14, marginHorizontal: 16,
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 14,
+    marginHorizontal: 16,
   },
   actionBtn: {
-    flex: 1, backgroundColor: '#fff', borderRadius: 14,
-    paddingVertical: 14, alignItems: 'center', gap: 6,
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    gap: 6,
     ...Platform.select({
       ios: {
-        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.07, shadowRadius: 6,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.07,
+        shadowRadius: 6,
       },
       android: { elevation: 3 },
     }),
   },
   actionIconWrap: {
-    width: 40, height: 40, borderRadius: 20,
-    alignItems: 'center', justifyContent: 'center',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   actionIcon: { fontSize: 20 },
   actionLabel: { fontSize: 12, fontWeight: '700', color: '#333' },
 
   // ── Tabs
   tabs: {
-    flexDirection: 'row', marginTop: 16, marginHorizontal: 16,
-    backgroundColor: '#EBEBF0', borderRadius: 12, padding: 3,
+    flexDirection: 'row',
+    marginTop: 16,
+    marginHorizontal: 16,
+    backgroundColor: '#EBEBF0',
+    borderRadius: 12,
+    padding: 3,
   },
   tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10 },
   tabActive: { backgroundColor: '#fff' },
@@ -530,24 +678,35 @@ const styles = StyleSheet.create({
 
   // ── List
   listCard: {
-    backgroundColor: '#fff', marginTop: 12, marginHorizontal: 16,
-    borderRadius: 16, overflow: 'hidden',
+    backgroundColor: '#fff',
+    marginTop: 12,
+    marginHorizontal: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
     ...Platform.select({
       ios: {
-        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06, shadowRadius: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
       },
       android: { elevation: 3 },
     }),
   },
   listItem: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 14, gap: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 12,
   },
   listItemBorder: { borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
   listIconWrap: {
-    width: 42, height: 42, borderRadius: 21,
-    alignItems: 'center', justifyContent: 'center',
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   listIconPending: { backgroundColor: '#FFF3E0' },
   listIconSynced: { backgroundColor: '#E8F5E9' },
@@ -555,7 +714,12 @@ const styles = StyleSheet.create({
   listIconTransferOut: { backgroundColor: '#FFEBEE' },
   listIcon: { fontSize: 20 },
   listInfo: { flex: 1 },
-  listTitle: { fontSize: 14, fontWeight: '600', color: '#222', marginBottom: 3 },
+  listTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#222',
+    marginBottom: 3,
+  },
   listDate: { fontSize: 12, color: '#888' },
   listAmountIn: { fontSize: 14, fontWeight: '700', color: '#4CAF50' },
   listAmountOut: { fontSize: 14, fontWeight: '700', color: '#FF5252' },
@@ -564,40 +728,68 @@ const styles = StyleSheet.create({
   emptyEmoji: { fontSize: 36, marginBottom: 10 },
   emptyText: { fontSize: 14, color: '#AAAAAA', fontWeight: '500' },
   emptyAction: {
-    marginTop: 12, paddingHorizontal: 20, paddingVertical: 8,
-    backgroundColor: '#EDE7F6', borderRadius: 20,
+    marginTop: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    backgroundColor: '#EDE7F6',
+    borderRadius: 20,
   },
   emptyActionText: { fontSize: 13, color: '#5C6BC0', fontWeight: '700' },
 
   // ── Modal
   modalOverlay: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end',
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'flex-end',
   },
   modalSheet: {
-    backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    paddingHorizontal: 24, paddingTop: 12,
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 24,
+    paddingTop: 12,
     paddingBottom: Platform.OS === 'ios' ? 36 : 24,
   },
   modalHandle: {
-    width: 40, height: 4, borderRadius: 2,
-    backgroundColor: '#DDD', alignSelf: 'center', marginBottom: 20,
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#DDD',
+    alignSelf: 'center',
+    marginBottom: 20,
   },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: '#222', marginBottom: 4 },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#222',
+    marginBottom: 4,
+  },
   modalSub: { fontSize: 13, color: '#666', marginBottom: 4 },
   modalAmount: {
-    fontSize: 32, fontWeight: '800', color: '#5C6BC0', marginBottom: 20,
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#5C6BC0',
+    marginBottom: 20,
   },
   modalInfoBox: {
-    backgroundColor: '#F5F6FA', borderRadius: 14, padding: 16, marginBottom: 20,
+    backgroundColor: '#F5F6FA',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 20,
   },
   modalInfoText: { fontSize: 13, color: '#555', lineHeight: 18 },
   modalSyncBtn: {
-    backgroundColor: '#5C6BC0', borderRadius: 14, paddingVertical: 16,
-    alignItems: 'center', marginTop: 4,
+    backgroundColor: '#5C6BC0',
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 4,
     ...Platform.select({
       ios: {
-        shadowColor: '#5C6BC0', shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.35, shadowRadius: 8,
+        shadowColor: '#5C6BC0',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.35,
+        shadowRadius: 8,
       },
       android: { elevation: 6 },
     }),

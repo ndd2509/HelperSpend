@@ -1,21 +1,33 @@
 // Transaction types
 export interface Transaction {
   id: string;
-  type: 'expense' | 'income';
+  type: 'expense' | 'income' | 'loan';
   amount: number;
   category: string;
   description: string;
   date: string;
+  accountId?: string;
+  // Loan-specific fields
+  lender?: string;
+  dueDate?: string;
+  location?: string;
+  imageUri?: string;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface CreateTransactionRequest {
-  type: 'expense' | 'income';
+  type: 'expense' | 'income' | 'loan';
   amount: number;
   category: string;
-  description?: string; // Optional — note/diễn giải
-  date: string;         // YYYY-MM-DD
+  description?: string;
+  date: string;
+  accountId?: string;
+  // Loan-specific fields
+  lender?: string;
+  dueDate?: string;
+  location?: string;
+  imageUri?: string;
 }
 
 export interface UpdateTransactionRequest {
@@ -117,6 +129,21 @@ export interface DepositRequest {
 export interface CreateDepositRequestRequest {
   amount: number;
   description: string;
+}
+
+// Loan types
+export interface Loan {
+  id: string;
+  userId: string;
+  transactionId: string;
+  lender: string;
+  amount: number;
+  category?: string;
+  dueDate: string | null;
+  status: 'active' | 'paid';
+  paidAt?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // API Response wrapper

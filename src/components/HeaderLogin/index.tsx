@@ -42,11 +42,11 @@ export default function HeaderLogin({
             <SvgXml xml={Icon.ic_header_logo} />
           </TouchableOpacity>
         )}
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={[styles.buttonSupport, { opacity: isFocused && 1 }]}
         >
           <Text style={styles.label}>Hỗ trợ</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
     </View>
   );

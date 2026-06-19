@@ -82,7 +82,7 @@ class NotificationService {
 
       return token;
     } catch (error: any) {
-      console.error('Error getting FCM token:', error);
+      // console.error('Error getting FCM token:', error);
       // Check if it's a Firebase not initialized error
       if (
         error.message?.includes('Firebase') ||
@@ -167,7 +167,7 @@ class NotificationService {
       this.fcmToken = null;
       console.log('FCM token deleted');
     } catch (error) {
-      console.error('Error deleting FCM token:', error);
+      console.log('Error deleting FCM token:', error);
     }
   }
 }

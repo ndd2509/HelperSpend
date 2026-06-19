@@ -11,6 +11,8 @@ import {
   Easing,
   Keyboard,
   SafeAreaView,
+  ScrollView,
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { sendChatMessage } from '../../apis/apis';
@@ -23,11 +25,81 @@ interface ChatMessage {
   loading?: boolean;
 }
 
-const SUGGESTIONS = [
-  'Tôi chi tiêu gì nhiều nhất?',
-  'Cho tôi lời khuyên tiết kiệm',
-  'Phân tích tài chính tháng này',
-  'Tôi nên cắt giảm chi phí nào?',
+// ─── Gợi ý theo chủ đề ──────────────────────────────────────────────────────
+interface SuggestionTopic {
+  id: string;
+  label: string;
+  emoji: string;
+  questions: string[];
+}
+
+const SUGGESTION_TOPICS: SuggestionTopic[] = [
+  {
+    id: 'overview',
+    label: 'Tổng quan',
+    emoji: '📊',
+    questions: [
+      'Tôi chi tiêu gì nhiều nhất tháng này?',
+      'Tỷ lệ tiết kiệm của tôi đang ở mức nào?',
+      'Tình hình tài chính tháng này như thế nào?',
+      'So sánh thu chi 3 tháng gần nhất cho tôi',
+    ],
+  },
+  {
+    id: 'saving',
+    label: 'Tiết kiệm',
+    emoji: '💡',
+    questions: [
+      'Cho tôi 5 lời khuyên tiết kiệm thực tế',
+      'Tôi nên cắt giảm chi tiêu ở đâu?',
+      'Làm sao để tiết kiệm 20% thu nhập?',
+      'Quy tắc 50/30/20 áp dụng cho tôi thế nào?',
+    ],
+  },
+  {
+    id: 'budget',
+    label: 'Ngân sách',
+    emoji: '🎯',
+    questions: [
+      'Ngân sách nào đang bị vượt quá?',
+      'Tôi nên đặt ngân sách cho danh mục nào?',
+      'Gợi ý hạn mức ngân sách phù hợp với tôi',
+      'Cách quản lý ngân sách hiệu quả nhất?',
+    ],
+  },
+  {
+    id: 'fund',
+    label: 'Quỹ nhóm',
+    emoji: '👥',
+    questions: [
+      'Các quỹ nhóm của tôi đang thế nào?',
+      'Cách quản lý quỹ nhóm hiệu quả?',
+      'Nên đặt mức đóng góp quỹ bao nhiêu?',
+      'Quỹ nhóm nào đang có số dư thấp nhất?',
+    ],
+  },
+  {
+    id: 'plan',
+    label: 'Kế hoạch',
+    emoji: '🚀',
+    questions: [
+      'Lập kế hoạch tài chính cho tháng tới',
+      'Tôi có thể tiết kiệm thêm bao nhiêu mỗi tháng?',
+      'Cách đạt mục tiêu tài chính trong 6 tháng?',
+      'Gợi ý phân bổ thu nhập của tôi',
+    ],
+  },
+  {
+    id: 'loan',
+    label: 'Vay/Nợ',
+    emoji: '💳',
+    questions: [
+      'Tôi đang có khoản nợ nào cần ưu tiên trả?',
+      'Cách quản lý khoản vay hiệu quả?',
+      'Nên trả nợ hay tiết kiệm trước?',
+      'Tình trạng các khoản vay của tôi thế nào?',
+    ],
+  },
 ];
 
 const AIChatScreen = () => {
@@ -35,6 +107,7 @@ const AIChatScreen = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [selectedTopic, setSelectedTopic] = useState<string>('overview');
   const flatListRef = useRef<FlatList>(null);
 
   // Typing indicator animation
@@ -85,13 +158,13 @@ const AIChatScreen = () => {
         id: 'welcome',
         role: 'assistant',
         content:
-          'Xin chào! 👋 Tôi là trợ lý tài chính AI của bạn.\n\nTôi có thể giúp bạn:\n• 📊 Phân tích chi tiêu\n• 💡 Gợi ý tiết kiệm\n• 📈 Đánh giá tài chính\n• 🎯 Lập kế hoạch ngân sách\n\nHãy hỏi tôi bất cứ điều gì! 😊',
+          'Xin chào! 👋 Tôi là **HelperSpend AI** — trợ lý tài chính của bạn.\n\nTôi có thể giúp bạn:\n• 📊 Phân tích chi tiêu & thu nhập\n• 💡 Gợi ý tiết kiệm thực tế\n• 🎯 Quản lý ngân sách & mục tiêu\n• 👥 Tư vấn quỹ nhóm\n• 💳 Theo dõi khoản vay\n\nChọn chủ đề bên dưới hoặc hỏi tôi bất cứ điều gì! 😊',
         timestamp: new Date(),
       },
     ]);
   }, []);
 
-  // Keyboard handling for modal
+  // Keyboard handling
   const keyboardHeight = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -138,7 +211,6 @@ const AIChatScreen = () => {
     setMessages(prev => [...prev, userMsg]);
     setSending(true);
 
-    // Scroll to bottom
     setTimeout(() => {
       flatListRef.current?.scrollToEnd({ animated: true });
     }, 100);
@@ -178,6 +250,50 @@ const AIChatScreen = () => {
     }
   };
 
+  const handleClearChat = () => {
+    Alert.alert(
+      'Xóa cuộc trò chuyện',
+      'Bạn có muốn bắt đầu cuộc trò chuyện mới không?',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Xóa',
+          style: 'destructive',
+          onPress: () => {
+            setMessages([
+              {
+                id: 'welcome',
+                role: 'assistant',
+                content:
+                  'Cuộc trò chuyện mới bắt đầu! 🌟 Tôi có thể giúp gì cho bạn?',
+                timestamp: new Date(),
+              },
+            ]);
+          },
+        },
+      ],
+    );
+  };
+
+  // Render text with basic bold markdown (**text**)
+  const renderMessageText = (content: string) => {
+    const parts = content.split(/(\*\*.*?\*\*)/g);
+    return (
+      <Text>
+        {parts.map((part, i) => {
+          if (part.startsWith('**') && part.endsWith('**')) {
+            return (
+              <Text key={i} style={{ fontWeight: '700' }}>
+                {part.slice(2, -2)}
+              </Text>
+            );
+          }
+          return <Text key={i}>{part}</Text>;
+        })}
+      </Text>
+    );
+  };
+
   const renderMessage = ({ item }: { item: ChatMessage }) => {
     const isUser = item.role === 'user';
 
@@ -205,7 +321,7 @@ const AIChatScreen = () => {
               isUser ? styles.userText : styles.aiText,
             ]}
           >
-            {item.content}
+            {isUser ? item.content : renderMessageText(item.content)}
           </Text>
           <Text style={[styles.timeText, isUser && styles.userTimeText]}>
             {item.timestamp.toLocaleTimeString('vi-VN', {
@@ -237,9 +353,7 @@ const AIChatScreen = () => {
         <View style={styles.avatarContainer}>
           <Text style={styles.avatarText}>🤖</Text>
         </View>
-        <View
-          style={[styles.messageBubble, styles.aiBubble, styles.typingBubble]}
-        >
+        <View style={[styles.messageBubble, styles.aiBubble, styles.typingBubble]}>
           <View style={styles.dotsContainer}>
             <Animated.View style={[styles.dot, dotStyle(dot1)]} />
             <Animated.View style={[styles.dot, dotStyle(dot2)]} />
@@ -250,24 +364,61 @@ const AIChatScreen = () => {
     );
   };
 
+  // Suggestion section — shown only when chat is new (only welcome message)
   const renderSuggestions = () => {
     if (messages.length > 1) return null;
 
+    const currentTopic = SUGGESTION_TOPICS.find(t => t.id === selectedTopic) ?? SUGGESTION_TOPICS[0];
+
     return (
-      <View style={styles.suggestionsContainer}>
-        <Text style={styles.suggestionsTitle}>💬 Gợi ý câu hỏi:</Text>
-        {SUGGESTIONS.map((s, i) => (
+      <View style={styles.suggestionsWrapper}>
+        {/* Topic chips */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.topicChipsRow}
+        >
+          {SUGGESTION_TOPICS.map(topic => (
+            <TouchableOpacity
+              key={topic.id}
+              style={[
+                styles.topicChip,
+                selectedTopic === topic.id && styles.topicChipActive,
+              ]}
+              onPress={() => setSelectedTopic(topic.id)}
+            >
+              <Text style={styles.topicChipEmoji}>{topic.emoji}</Text>
+              <Text
+                style={[
+                  styles.topicChipLabel,
+                  selectedTopic === topic.id && styles.topicChipLabelActive,
+                ]}
+              >
+                {topic.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* Questions for selected topic */}
+        <Text style={styles.suggestionsTitle}>💬 Câu hỏi gợi ý:</Text>
+        {currentTopic.questions.map((q, i) => (
           <TouchableOpacity
             key={i}
             style={styles.suggestionBtn}
-            onPress={() => handleSend(s)}
+            onPress={() => handleSend(q)}
+            activeOpacity={0.7}
           >
-            <Text style={styles.suggestionText}>{s}</Text>
+            <Text style={styles.suggestionBtnArrow}>→</Text>
+            <Text style={styles.suggestionText}>{q}</Text>
           </TouchableOpacity>
         ))}
       </View>
     );
   };
+
+  const isShowingHistory = messages.length > 1;
+  const charCount = input.length;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -281,12 +432,24 @@ const AIChatScreen = () => {
             <Text style={styles.backText}>←</Text>
           </TouchableOpacity>
           <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>🤖 Trợ lý AI</Text>
+            <View style={styles.headerTitleRow}>
+              <Text style={styles.headerTitle}>🤖 HelperSpend AI</Text>
+              <View style={styles.onlineDot} />
+            </View>
             <Text style={styles.headerSubtitle}>
-              Powered by Groq • Llama 3.3
+              Groq • Llama 3.3 70B
             </Text>
           </View>
-          <View style={styles.headerRight} />
+          {isShowingHistory ? (
+            <TouchableOpacity
+              style={styles.clearBtn}
+              onPress={handleClearChat}
+            >
+              <Text style={styles.clearBtnText}>🗑️</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.headerRight} />
+          )}
         </View>
 
         {/* Messages */}
@@ -310,16 +473,20 @@ const AIChatScreen = () => {
 
         {/* Input */}
         <Animated.View style={[styles.inputContainer, { marginBottom: keyboardHeight }]}>
+          {charCount > 400 && (
+            <Text style={styles.charCounter}>{charCount}/500</Text>
+          )}
           <View style={styles.inputWrapper}>
             <TextInput
               style={styles.textInput}
               value={input}
               onChangeText={setInput}
-              placeholder="Hôm nay tôi có thể giúp gì cho bạn?"
+              placeholder="Hỏi về tài chính của bạn..."
               placeholderTextColor="#8E8E93"
               multiline
               maxLength={500}
               editable={!sending}
+              onSubmitEditing={() => handleSend()}
             />
             <TouchableOpacity
               style={[
@@ -347,7 +514,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F2F2F7',
   },
-  // Header
+
+  // ── Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -371,10 +539,21 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
   },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   headerTitle: {
-    fontSize: 17,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
     color: '#1C1C1E',
+  },
+  onlineDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#34C759',
   },
   headerSubtitle: {
     fontSize: 11,
@@ -384,7 +563,17 @@ const styles = StyleSheet.create({
   headerRight: {
     width: 40,
   },
-  // Messages
+  clearBtn: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  clearBtnText: {
+    fontSize: 18,
+  },
+
+  // ── Messages
   messagesList: {
     paddingHorizontal: 12,
     paddingTop: 12,
@@ -452,7 +641,8 @@ const styles = StyleSheet.create({
   userTimeText: {
     color: 'rgba(255,255,255,0.7)',
   },
-  // Typing indicator
+
+  // ── Typing indicator
   typingBubble: {
     paddingVertical: 14,
     paddingHorizontal: 18,
@@ -467,32 +657,87 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#8E8E93',
   },
-  // Suggestions
-  suggestionsContainer: {
-    marginTop: 8,
+
+  // ── Suggestions
+  suggestionsWrapper: {
+    marginTop: 4,
     marginBottom: 12,
     paddingLeft: 40,
+    paddingRight: 8,
+  },
+  topicChipsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingBottom: 12,
+  },
+  topicChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#E5E5EA',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  topicChipActive: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  topicChipEmoji: {
+    fontSize: 13,
+  },
+  topicChipLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#555',
+  },
+  topicChipLabelActive: {
+    color: '#FFFFFF',
   },
   suggestionsTitle: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#8E8E93',
     marginBottom: 8,
+    fontWeight: '500',
   },
   suggestionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#007AFF',
-    borderRadius: 20,
-    paddingHorizontal: 16,
+    borderColor: '#D1E8FF',
+    borderRadius: 12,
+    paddingHorizontal: 14,
     paddingVertical: 10,
-    marginBottom: 8,
+    marginBottom: 7,
     alignSelf: 'flex-start',
+    gap: 8,
+    maxWidth: '100%',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#007AFF',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+      },
+      android: { elevation: 1 },
+    }),
+  },
+  suggestionBtnArrow: {
+    fontSize: 13,
+    color: '#007AFF',
+    fontWeight: '700',
   },
   suggestionText: {
-    fontSize: 14,
-    color: '#007AFF',
+    fontSize: 13,
+    color: '#1C1C1E',
+    flex: 1,
+    flexWrap: 'wrap',
   },
-  // Input
+
+  // ── Input
   inputContainer: {
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
@@ -500,6 +745,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     paddingBottom: 8,
+  },
+  charCounter: {
+    fontSize: 11,
+    color: '#FF9500',
+    textAlign: 'right',
+    marginBottom: 4,
   },
   inputWrapper: {
     flexDirection: 'row',

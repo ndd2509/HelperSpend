@@ -298,6 +298,8 @@ const styles = StyleSheet.create({
     height: 44,
     fontSize: 15,
     color: '#1A1A2E',
+    textAlignVertical: 'center',
+    paddingVertical: 0,
   },
   inputUnit: {
     fontSize: 15,
@@ -311,6 +313,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     backgroundColor: '#FAFAFA',
     height: 44,
+    textAlignVertical: 'center',
+    paddingVertical: 0,
   },
   charCount: {
     fontSize: 11,

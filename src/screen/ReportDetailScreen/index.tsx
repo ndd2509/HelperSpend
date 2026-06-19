@@ -8,7 +8,11 @@ import {
   Modal,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { getTransactions } from '../../apis/apis';
+import {
+  getTransactions,
+  getLoanSummary,
+  getDashboardSummary,
+} from '../../apis/apis';
 import type { Transaction } from '../../apis/types';
 import { BaseContainer } from 'react-native-shared-components';
 import ExpenseAnalysis from './components/ExpenseAnalysis';
@@ -46,6 +50,9 @@ const ReportDetailScreen = ({ navigation, route }: any) => {
     useState<ReportType>(initialReport);
   const [showReportPicker, setShowReportPicker] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [totalDebt, setTotalDebt] = useState(0);
+  const [totalLent, setTotalLent] = useState(0);
+  const [accountBalance, setAccountBalance] = useState(0);
 
   const AI_REPORTS = [
     'expense-analysis',
@@ -65,9 +72,38 @@ const ReportDetailScreen = ({ navigation, route }: any) => {
     }
   };
 
+  const loadLoanSummary = async () => {
+    try {
+      const response = await getLoanSummary();
+      if (response.success && response.data) {
+        setTotalDebt(response.data.totalDebt);
+        setTotalLent(response.data.totalLent || 0);
+      }
+    } catch (error) {
+      console.error('Error loading loan summary:', error);
+    }
+  };
+
+  const loadAccountBalance = async () => {
+    try {
+      const now = new Date();
+      const response = await getDashboardSummary(
+        now.getMonth() + 1,
+        now.getFullYear(),
+      );
+      if (response.success && response.data) {
+        setAccountBalance(response.data.balance);
+      }
+    } catch (error) {
+      console.error('Error loading account balance:', error);
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       loadTransactions();
+      loadLoanSummary();
+      loadAccountBalance();
     }, []),
   );
 
@@ -155,13 +191,7 @@ const ReportDetailScreen = ({ navigation, route }: any) => {
   const thisYear = getThisYear();
 
   const getTotalBalance = () => {
-    const totalIncome = transactions
-      .filter(tx => tx.type === 'income')
-      .reduce((sum, tx) => sum + tx.amount, 0);
-    const totalExpense = transactions
-      .filter(tx => tx.type === 'expense')
-      .reduce((sum, tx) => sum + tx.amount, 0);
-    return { totalCo: totalIncome - totalExpense, totalNo: 0 };
+    return { totalCo: accountBalance + totalDebt - totalLent, totalNo: totalDebt };
   };
   const balance = getTotalBalance();
 
@@ -337,7 +367,7 @@ const ReportDetailScreen = ({ navigation, route }: any) => {
               Năm
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={[styles.tab, selectedTab === 'custom' && styles.tabActive]}
             onPress={() => setSelectedTab('custom')}
           >
@@ -349,11 +379,11 @@ const ReportDetailScreen = ({ navigation, route }: any) => {
             >
               Tùy chọn
             </Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
       )}
 
-      <View style={styles.dateFilter}>
+      {/* <View style={styles.dateFilter}>
         <Text style={styles.dateFilterIcon}>📅</Text>
         <Text style={styles.dateFilterText}>
           Năm {new Date().getFullYear()}
@@ -361,7 +391,7 @@ const ReportDetailScreen = ({ navigation, route }: any) => {
         <TouchableOpacity>
           <Text style={styles.settingsIcon}>⚙️</Text>
         </TouchableOpacity>
-      </View>
+      </View> */}
 
       <ScrollView style={styles.content}>
         {selectedReport === 'balance' && (
@@ -371,7 +401,7 @@ const ReportDetailScreen = ({ navigation, route }: any) => {
                 Tài chính hiện tại (1) - (2)
               </Text>
               <Text style={styles.balanceSummaryValue}>
-                {balance.totalCo.toLocaleString('vi-VN')} đ
+                {(balance.totalCo - balance.totalNo).toLocaleString('vi-VN')} đ
               </Text>
             </View>
             <View style={styles.balanceCards}>
@@ -383,7 +413,9 @@ const ReportDetailScreen = ({ navigation, route }: any) => {
               </View>
               <View style={styles.balanceCard}>
                 <Text style={styles.balanceCardLabel}>Tổng nợ (2)</Text>
-                <Text style={styles.balanceCardValue}>0 đ</Text>
+                <Text style={styles.balanceCardValue}>
+                  {balance.totalNo.toLocaleString('vi-VN')} đ
+                </Text>
               </View>
             </View>
             <Text style={styles.balanceSectionTitle}>Tổng có (1)</Text>
@@ -401,7 +433,54 @@ const ReportDetailScreen = ({ navigation, route }: any) => {
                 <Text style={styles.balanceItemArrow}>›</Text>
               </View>
             </TouchableOpacity>
+            {totalLent > 0 && (
+              <TouchableOpacity
+                style={styles.balanceItem}
+                onPress={() => navigation.navigate('Lending')}
+              >
+                <View style={styles.balanceItemLeft}>
+                  <View
+                    style={[
+                      styles.balanceItemIcon,
+                      { backgroundColor: '#4CAF50' },
+                    ]}
+                  >
+                    <Text style={styles.balanceItemIconText}>$</Text>
+                  </View>
+                  <Text style={styles.balanceItemName}>Cho vay</Text>
+                </View>
+                <View style={styles.balanceItemRight}>
+                  <Text style={[styles.balanceItemValue, { color: '#4CAF50' }]}>
+                    -{totalLent.toLocaleString('vi-VN')} đ
+                  </Text>
+                  <Text style={styles.balanceItemArrow}>›</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+
             <Text style={styles.balanceSectionTitle}>Tổng nợ (2)</Text>
+            <TouchableOpacity
+              style={styles.balanceItem}
+              onPress={() => navigation.navigate('DebtPayment')}
+            >
+              <View style={styles.balanceItemLeft}>
+                <View
+                  style={[
+                    styles.balanceItemIcon,
+                    { backgroundColor: '#FF3B30' },
+                  ]}
+                >
+                  <Text style={styles.balanceItemIconText}>$</Text>
+                </View>
+                <Text style={styles.balanceItemName}>Nợ phải trả</Text>
+              </View>
+              <View style={styles.balanceItemRight}>
+                <Text style={[styles.balanceItemValue, { color: '#FF3B30' }]}>
+                  {balance.totalNo.toLocaleString('vi-VN')} đ
+                </Text>
+                <Text style={styles.balanceItemArrow}>›</Text>
+              </View>
+            </TouchableOpacity>
           </View>
         )}
 

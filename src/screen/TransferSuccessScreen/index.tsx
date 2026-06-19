@@ -64,24 +64,42 @@ const TransferSuccessScreen = () => {
   }, [scaleAnim, fadeAnim, slideAnim]);
 
   const handleDone = () => {
-    // Pop toàn bộ scan stack rồi chuyển sang tab home
+    // Reset toàn bộ stack về Tabs → tab home
     navigation.dispatch(
       CommonActions.reset({
         index: 0,
-        routes: [{ name: 'ScanMain' }],
+        routes: [
+          {
+            name: 'Tabs',
+            state: {
+              routes: [{ name: 'home' }],
+              index: 0,
+            },
+          },
+        ],
       }),
     );
-    navigation.getParent()?.navigate('home');
   };
 
   const handleViewWallet = () => {
+    // Reset toàn bộ stack về Tabs → tab wallet
     navigation.dispatch(
       CommonActions.reset({
         index: 0,
-        routes: [{ name: 'ScanMain' }],
+        routes: [
+          {
+            name: 'Tabs',
+            state: {
+              routes: [
+                { name: 'home' },
+                { name: 'wallet' },
+              ],
+              index: 1,
+            },
+          },
+        ],
       }),
     );
-    navigation.getParent()?.navigate('wallet');
   };
 
   return (

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,12 +11,13 @@ import {
   Modal,
   TouchableWithoutFeedback,
 } from 'react-native';
-import Svg, { G, Path, Circle } from 'react-native-svg';
-import { BaseContainer } from 'react-native-shared-components';
+import Svg, { G, Path, Circle, SvgXml } from 'react-native-svg';
+import { BaseContainer, SCREEN_HEIGHT } from 'react-native-shared-components';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getDashboardSummary, getTransactions } from '../../apis/apis';
 import type { DashboardSummary, Transaction } from '../../apis/types';
+import { Icon } from '../../assets/svg';
 
 // ─── Period filter ────────────────────────────────────────────────────────────
 type PeriodKey = 'today' | 'week' | 'month' | 'quarter' | 'year';
@@ -29,7 +30,12 @@ const PERIOD_OPTIONS: { key: PeriodKey; label: string }[] = [
   { key: 'year', label: 'Năm nay' },
 ];
 
-const toISO = (d: Date) => d.toISOString().slice(0, 10);
+const toISO = (d: Date) => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 const getDateRange = (
   period: PeriodKey,
@@ -68,12 +74,23 @@ const getDateRange = (
 };
 
 const calcStats = (txs: Transaction[]) => {
+  console.log('📊 calcStats input:', txs.length, 'transactions');
   let income = 0;
   let expense = 0;
   txs.forEach(tx => {
-    if (tx.type === 'income') income += tx.amount;
-    else expense += tx.amount;
+    // Determine if transaction is income or expense
+    const isIncome =
+      tx.type === 'income' || (tx.type === 'loan' && tx.category === 'Đi vay');
+
+    if (isIncome) {
+      income += tx.amount;
+      console.log('  💰 Income:', tx.amount, tx.category);
+    } else {
+      expense += tx.amount;
+      console.log('  💸 Expense:', tx.amount, tx.category);
+    }
   });
+  console.log('📊 calcStats result:', { income, expense });
   return { income, expense };
 };
 
@@ -93,6 +110,8 @@ const CATEGORY_CONFIG: Record<
   Lương: { icon: '💼', bg: '#E8F5E9', color: '#43A047' },
   Thưởng: { icon: '🎁', bg: '#F3E5F5', color: '#7B1FA2' },
   'Đầu tư': { icon: '📈', bg: '#E3F2FD', color: '#1565C0' },
+  'Trả nợ': { icon: '💸', bg: '#FFF3E0', color: '#E65100' },
+  'Chuyển tiền': { icon: '↗️', bg: '#E8EAF6', color: '#3949AB' },
   default: { icon: '💳', bg: '#ECEFF1', color: '#607D8B' },
 };
 
@@ -136,7 +155,12 @@ const buildDonutSlices = (
   const expenseMap: Record<string, number> = {};
   let total = 0;
   transactions.forEach(tx => {
-    if (tx.type === 'expense') {
+    // Include both expense and Cho vay loan
+    const isExpense =
+      tx.type === 'expense' ||
+      (tx.type === 'loan' && tx.category === 'Cho vay');
+
+    if (isExpense) {
       expenseMap[tx.category] = (expenseMap[tx.category] || 0) + tx.amount;
       total += tx.amount;
     }
@@ -147,6 +171,7 @@ const buildDonutSlices = (
     .slice(0, 5)
     .map(([category, amount], i) => ({
       category,
+      amount,
       percentage: (amount / total) * 100,
       color: DONUT_COLORS[i % DONUT_COLORS.length],
     }));
@@ -231,73 +256,91 @@ export const HomeScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hideBalance, setHideBalance] = useState(false);
-
-  // Thu chi filter
-  const [selectedPeriod, setSelectedPeriod] = useState<PeriodKey>('year');
-  const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
   const [filteredTxs, setFilteredTxs] = useState<Transaction[]>([]);
   const [thuChiLoading, setThuChiLoading] = useState(false);
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodKey>('week');
+  const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
+  const [dropdownTop, setDropdownTop] = useState(0);
+  const periodBtnRef = useRef<View>(null);
 
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth()); // 0-indexed
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
 
-  const loadDashboard = async (isRefreshing = false) => {
-    try {
-      if (!isRefreshing) setLoading(true);
-      setError(null);
-      const response = await getDashboardSummary(
-        selectedMonth + 1,
-        selectedYear,
-      );
-      if (response.success && response.data) {
-        setData(response.data);
-      } else {
-        setError('Không thể tải dữ liệu');
+  const loadDashboard = useCallback(
+    async (isRefreshing = false) => {
+      try {
+        if (!isRefreshing) setLoading(true);
+        setError(null);
+        const response = await getDashboardSummary(
+          selectedMonth + 1,
+          selectedYear,
+        );
+        console.log('log response', JSON.stringify(response));
+
+        if (response.success && response.data) {
+          setData(response.data);
+        } else {
+          setError('Không thể tải dữ liệu');
+        }
+      } catch (err: any) {
+        setError(err.message || 'Đã xảy ra lỗi');
+      } finally {
+        setLoading(false);
+        if (!isRefreshing) setRefreshing(false);
       }
-    } catch (err: any) {
-      setError(err.message || 'Đã xảy ra lỗi');
+    },
+    [selectedMonth, selectedYear],
+  );
+
+  const fetchPeriod = useCallback(async () => {
+    console.log('🔄 fetchPeriod started for period:', selectedPeriod);
+    setThuChiLoading(true);
+    try {
+      const { startDate, endDate } = getDateRange(selectedPeriod);
+      console.log('📅 Date range:', { startDate, endDate });
+      const res = await getTransactions({ startDate, endDate });
+      console.log('📦 API response:', res);
+      if (res.success && res.data) {
+        // Sắp xếp mới nhất trước
+        const sorted = [...res.data].sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        );
+        console.log('✅ Sorted transactions:', sorted.length, 'items');
+        setFilteredTxs(sorted);
+      } else {
+        console.log('⚠️ No data from API');
+        setFilteredTxs([]);
+      }
+    } catch (error) {
+      console.error('❌ fetchPeriod error:', error);
+      setFilteredTxs([]);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      setThuChiLoading(false);
+      console.log('✔️ fetchPeriod finished');
     }
-  };
+  }, [selectedPeriod]);
 
   useFocusEffect(
     useCallback(() => {
       loadDashboard();
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedMonth, selectedYear]),
+      fetchPeriod();
+    }, [loadDashboard, fetchPeriod]),
   );
 
   // Load transactions for the selected period
   useEffect(() => {
-    const fetchPeriod = async () => {
-      setThuChiLoading(true);
-      try {
-        const { startDate, endDate } = getDateRange(selectedPeriod);
-        const res = await getTransactions({ startDate, endDate });
-        if (res.success && res.data) {
-          // Sắp xếp mới nhất trước
-          const sorted = [...res.data].sort(
-            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-          );
-          setFilteredTxs(sorted);
-        } else {
-          setFilteredTxs([]);
-        }
-      } catch {
-        setFilteredTxs([]);
-      } finally {
-        setThuChiLoading(false);
-      }
-    };
     fetchPeriod();
-  }, [selectedPeriod]);
+  }, [fetchPeriod]);
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    loadDashboard(true);
+    try {
+      await Promise.all([loadDashboard(true), fetchPeriod()]);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const prevMonth = () => {
@@ -326,8 +369,9 @@ export const HomeScreen = () => {
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Chào buổi sáng';
-    if (hour < 18) return 'Chào buổi chiều';
+    if (hour >= 0 && hour < 5) return 'Xin chào';
+    if (hour >= 5 && hour < 12) return 'Chào buổi sáng';
+    if (hour >= 12 && hour < 18) return 'Chào buổi chiều';
     return 'Chào buổi tối';
   };
 
@@ -426,18 +470,38 @@ export const HomeScreen = () => {
           </View>
 
           {/* Balance — Tổng số dư (thu nhập − chi tiêu) */}
-          <View style={styles.balanceRow}>
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginVertical: 16,
+            }}
+          >
             <View>
-              <Text style={styles.balanceLabel}>Tổng số dư</Text>
-              <Text style={styles.balanceAmount}>
-                {hideBalance ? '••••••••' : formatCurrency(data?.balance || 0)}
-              </Text>
+              <View style={{}}>
+                <Text style={styles.balanceLabel}>Tổng số dư</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={styles.balanceAmount}>
+                  {hideBalance
+                    ? '••••••••'
+                    : formatCurrency(data?.balance || 0)}
+                </Text>
+                <TouchableOpacity
+                  style={styles.eyeBtn}
+                  onPress={() => setHideBalance(h => !h)}
+                >
+                  <Text style={styles.eyeIcon}>
+                    {hideBalance ? '🙈' : '👁️'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
             <TouchableOpacity
-              style={styles.eyeBtn}
-              onPress={() => setHideBalance(h => !h)}
+              onPress={() => navigation.navigate('AccountList')}
             >
-              <Text style={styles.eyeIcon}>{hideBalance ? '🙈' : '👁️'}</Text>
+              <SvgXml xml={Icon.ic_arrow_right} width={24} height={24} />
             </TouchableOpacity>
           </View>
         </View>
@@ -551,18 +615,6 @@ export const HomeScreen = () => {
               </View>
               <Text style={styles.actionLabel}>Báo{'\n'}cáo</Text>
             </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.actionItem}
-              onPress={() => navigation.navigate('QRPayment')}
-            >
-              <View
-                style={[styles.actionIconWrap, { backgroundColor: '#E8EAF6' }]}
-              >
-                <Text style={styles.actionEmoji}>📲</Text>
-              </View>
-              <Text style={styles.actionLabel}>Mã{'\n'}QR</Text>
-            </TouchableOpacity>
           </View>
         </View>
 
@@ -657,8 +709,14 @@ export const HomeScreen = () => {
             <View style={styles.thuChiHeaderRight}>
               {/* Period dropdown trigger */}
               <TouchableOpacity
+                ref={periodBtnRef}
                 style={styles.periodBtn}
-                onPress={() => setShowPeriodDropdown(true)}
+                onPress={() => {
+                  periodBtnRef.current?.measure((_x, _y, _w, h, _px, py) => {
+                    setDropdownTop(py + h + 16);
+                    setShowPeriodDropdown(true);
+                  });
+                }}
               >
                 <Text style={styles.periodBtnText}>
                   {PERIOD_OPTIONS.find(p => p.key === selectedPeriod)?.label}
@@ -678,7 +736,9 @@ export const HomeScreen = () => {
             <TouchableWithoutFeedback
               onPress={() => setShowPeriodDropdown(false)}
             >
-              <View style={styles.dropdownOverlay}>
+              <View
+                style={[styles.dropdownOverlay, { paddingTop: dropdownTop }]}
+              >
                 <TouchableWithoutFeedback>
                   <View style={styles.dropdownMenu}>
                     {PERIOD_OPTIONS.map((opt, i) => (
@@ -811,7 +871,7 @@ export const HomeScreen = () => {
                                 {s.category}
                               </Text>
                               <Text style={styles.legendPct}>
-                                {s.percentage.toFixed(2)}%
+                                {formatCurrency(s.amount)} ({s.percentage.toFixed(1)}%)
                               </Text>
                             </View>
                           ))}
@@ -847,7 +907,14 @@ export const HomeScreen = () => {
           <View style={styles.card}>
             {data?.recentTransactions && data.recentTransactions.length > 0 ? (
               data.recentTransactions.map((tx, idx) => {
-                const catConfig = getCategoryConfig(tx.category, tx.type);
+                const catConfig = getCategoryConfig(
+                  tx.category,
+                  tx.type === 'loan'
+                    ? tx.category === 'Đi vay'
+                      ? 'income'
+                      : 'expense'
+                    : tx.type,
+                );
                 const isLast = idx === data.recentTransactions.length - 1;
                 return (
                   <View
@@ -868,8 +935,23 @@ export const HomeScreen = () => {
                     <View style={styles.txInfo}>
                       <Text style={styles.txCategory}>{tx.category}</Text>
                       <Text style={styles.txDesc} numberOfLines={1}>
-                          {tx.description || 'Đồng bộ từ ví'}
-                        </Text>
+                        {tx.description ||
+                          (tx.type === 'loan' && (tx as any).lender
+                            ? tx.category === 'Đi vay'
+                              ? `Vay từ ${(tx as any).lender}`
+                              : `${(tx as any).lender} vay`
+                            : tx.accountName
+                            ? (() => {
+                                const isIncome =
+                                  tx.type === 'income' ||
+                                  (tx.type === 'loan' &&
+                                    tx.category === 'Đi vay');
+                                return isIncome
+                                  ? `Nhận tiền từ ${tx.accountName}`
+                                  : `Chi tiêu từ ${tx.accountName}`;
+                              })()
+                            : 'Đồng bộ từ ví')}
+                      </Text>
                     </View>
 
                     {/* Amount + date */}
@@ -877,12 +959,23 @@ export const HomeScreen = () => {
                       <Text
                         style={[
                           styles.txAmount,
-                          tx.type === 'income'
-                            ? styles.incomeColor
-                            : styles.expenseColor,
+                          (() => {
+                            // Determine color based on category for loans
+                            const isIncome =
+                              tx.type === 'income' ||
+                              (tx.type === 'loan' && tx.category === 'Đi vay');
+                            return isIncome
+                              ? styles.incomeColor
+                              : styles.expenseColor;
+                          })(),
                         ]}
                       >
-                        {tx.type === 'income' ? '+' : '-'}
+                        {(() => {
+                          const isIncome =
+                            tx.type === 'income' ||
+                            (tx.type === 'loan' && tx.category === 'Đi vay');
+                          return isIncome ? '+' : '-';
+                        })()}
                         {formatCurrency(tx.amount)}
                       </Text>
                       <Text style={styles.txDate}>
@@ -907,6 +1000,17 @@ export const HomeScreen = () => {
           </View>
         </View>
       </ScrollView>
+      {/* <TouchableOpacity
+        style={{
+          height: 50,
+          width: 50,
+          borderRadius: 50,
+          backgroundColor: 'red',
+          position: 'absolute',
+          bottom: 100,
+          right: 20,
+        }}
+      /> */}
     </BaseContainer>
   );
 };
@@ -1048,12 +1152,13 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   eyeBtn: {
-    width: 40,
-    height: 40,
+    width: 30,
+    height: 30,
     borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
+    marginLeft: 10,
   },
   eyeIcon: { fontSize: 18 },
 
@@ -1401,7 +1506,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.15)',
     justifyContent: 'flex-start',
     alignItems: 'flex-end',
-    paddingTop: 200,
+    // paddingTop: SCREEN_HEIGHT / 2,
     paddingRight: 16,
   },
   dropdownMenu: {

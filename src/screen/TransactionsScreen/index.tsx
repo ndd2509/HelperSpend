@@ -36,7 +36,7 @@ export const TransactionsScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadTransactions = async (isRefreshing = false) => {
+  const loadTransactions = useCallback(async (isRefreshing = false) => {
     try {
       if (!isRefreshing) {
         setLoading(true);
@@ -45,6 +45,7 @@ export const TransactionsScreen = () => {
 
       const params = filterType === 'all' ? {} : { type: filterType };
       const response = await getTransactions(params);
+      console.log('log response', JSON.stringify(response));
 
       if (response.success && response.data) {
         setTransactions(response.data);
@@ -58,12 +59,12 @@ export const TransactionsScreen = () => {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [filterType]);
 
   useFocusEffect(
     useCallback(() => {
       loadTransactions();
-    }, [filterType]),
+    }, [loadTransactions]),
   );
 
   const onRefresh = () => {
@@ -95,26 +96,52 @@ export const TransactionsScreen = () => {
         <View
           style={[
             styles.categoryIcon,
-            item.type === 'expense' ? styles.expenseIcon : styles.incomeIcon,
+            (item.type === 'expense' || (item.type === 'loan' && item.category !== 'Đi vay'))
+              ? styles.expenseIcon
+              : styles.incomeIcon,
           ]}
         >
           <Text style={styles.categoryIconText}>{item.category.charAt(0)}</Text>
         </View>
         <View style={styles.transactionInfo}>
           <Text style={styles.transactionCategory}>{item.category}</Text>
-          <Text style={styles.transactionDescription}>{item.description}</Text>
+          <Text style={styles.transactionDescription}>
+            {item.description ||
+              (item.type === 'loan' && (item as any).lender
+                ? item.category === 'Đi vay'
+                  ? `Vay từ ${(item as any).lender}`
+                  : `${(item as any).lender} vay`
+                : (item as any).accountName
+                  ? (() => {
+                      const isIncome =
+                        item.type === 'income' ||
+                        (item.type === 'loan' && item.category === 'Đi vay');
+                      return isIncome
+                        ? `Nhận tiền từ ${(item as any).accountName}`
+                        : `Chi tiêu từ ${(item as any).accountName}`;
+                    })()
+                  : 'Đồng bộ từ ví')}
+          </Text>
         </View>
       </View>
       <View style={styles.transactionRight}>
         <Text
           style={[
             styles.transactionAmount,
-            item.type === 'expense'
-              ? styles.expenseAmount
-              : styles.incomeAmount,
+            (() => {
+              const isIncome =
+                item.type === 'income' ||
+                (item.type === 'loan' && item.category === 'Đi vay');
+              return isIncome ? styles.incomeAmount : styles.expenseAmount;
+            })(),
           ]}
         >
-          {item.type === 'income' ? '+' : '-'}
+          {(() => {
+            const isIncome =
+              item.type === 'income' ||
+              (item.type === 'loan' && item.category === 'Đi vay');
+            return isIncome ? '+' : '-';
+          })()}
           {formatCurrency(item.amount)}
         </Text>
         <Text style={styles.transactionDate}>

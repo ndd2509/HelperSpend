@@ -153,7 +153,7 @@ const GroupFundDetailScreen = () => {
     }
     if (key === 'report') {
       if (!fund) return;
-      const fundUrl = `http://10.3.50.239:3000/fund-group/${fund.id}`;
+      const fundUrl = `http://172.11.56.12:3000/fund-group/${fund.id}`;
       Share.share({ url: fundUrl }, { dialogTitle: 'Chia sẻ quỹ nhóm' }).catch(
         () => {},
       );

@@ -23,7 +23,7 @@ import { BaseContainer } from 'react-native-shared-components';
 
 const { width } = Dimensions.get('window');
 
-const SERVER_BASE_URL = 'http://10.3.50.239:3000';
+const SERVER_BASE_URL = 'http://172.20.10.3:3000';
 
 const ReportScreen = ({ navigation }: any) => {
   const [data, setData] = useState<DashboardSummary | null>(null);

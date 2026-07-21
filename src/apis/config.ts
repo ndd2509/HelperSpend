@@ -1,6 +1,6 @@
 import axios from 'axios';
 import AuthService, { EKeyAsyncStorage } from '../services/AuthService';
-const rootUrl = 'http://10.3.50.239:3000/api';
+const rootUrl = 'http://172.11.56.12:3000/api';
 export const client = axios.create({
   baseURL: rootUrl,
   timeout: 60000, // 5 minutes for image uploads
